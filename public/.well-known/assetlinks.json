@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.westchesterguy.chat",
+      "sha256_cert_fingerprints": [
+        "2D:BC:8C:CE:7E:45:A5:7C:3D:78:EC:D8:D3:A5:FA:EE:68:72:28:0C:9F:E4:5F:EC:AC:83:07:62:AE:99:E3:8A"
+      ]
+    }
+  }
+]

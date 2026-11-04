@@ -1,0 +1,43 @@
+{
+  "packageId": "com.westchesterguy.chat",
+  "host": "chat.westchesterguy.com",
+  "name": "MW Chat",
+  "launcherName": "MW Chat",
+  "display": "standalone",
+  "themeColor": "#002349",
+  "themeColorDark": "#002349",
+  "navigationColor": "#002349",
+  "navigationColorDark": "#002349",
+  "navigationDividerColor": "#002349",
+  "navigationDividerColorDark": "#002349",
+  "backgroundColor": "#FAFAF7",
+  "enableNotifications": true,
+  "startUrl": "/admin",
+  "iconUrl": "https://chat.westchesterguy.com/icons/icon-512.png",
+  "maskableIconUrl": "https://chat.westchesterguy.com/icons/maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./mwchat-upload.keystore",
+    "alias": "mwchat"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-core",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "minSdkVersion": 24,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "displayOverride": [],
+  "appVersion": "1.0.0",
+  "webManifestUrl": "https://chat.westchesterguy.com/manifest.webmanifest"
+}
