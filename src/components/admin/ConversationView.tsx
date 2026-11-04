@@ -7,17 +7,7 @@ import { Thread } from "../chat/Thread";
 import { ago } from "../chat/time";
 import { useMessages, type ChatMessage } from "../chat/useMessages";
 import { Avatar } from "../ui/Avatar";
-import {
-  BackIcon,
-  ChatIcon,
-  DeviceIcon,
-  GlobeIcon,
-  InfoIcon,
-  LinkIcon,
-  MailIcon,
-  PhoneIcon,
-  PinIcon,
-} from "../ui/icons";
+import { BackIcon, ChatIcon, GlobeIcon, InfoIcon, MailIcon, PhoneIcon } from "../ui/icons";
 import { Menu, type MenuItem } from "../ui/Menu";
 import { Sheet } from "../ui/Sheet";
 import { chime } from "./tones";
@@ -216,105 +206,111 @@ export function ConversationView({ id }: { id: string }) {
   );
 }
 
-function Row({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+/** One line: the label on the left, the value beside it. */
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex gap-3 py-2.5">
-      <span className="mt-0.5 text-faint">{icon}</span>
-      <div className="min-w-0 flex-1">
-        <dt className="text-[12px] text-muted">{label}</dt>
-        <dd className="mt-0.5 break-words text-[14px] text-ink">{children}</dd>
-      </div>
+    <div className="flex gap-4 py-2.5">
+      <dt className="w-[92px] shrink-0 text-[13px] text-muted">{label}</dt>
+      <dd className="min-w-0 flex-1 break-words text-[14px] text-ink">{children}</dd>
     </div>
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl bg-surface px-4 py-2 shadow-[var(--shadow-bubble)]">
-      <h3 className="pb-1 pt-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted">{title}</h3>
-      <dl className="divide-y divide-line/70">{children}</dl>
+    <section>
+      <h3 className="px-1 pb-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted">{title}</h3>
+      <dl className="divide-y divide-line rounded-2xl bg-surface px-4 shadow-[var(--shadow-bubble)]">{children}</dl>
     </section>
   );
 }
 
+/** Short labels for questions whose full wording is long. */
+function answerLabel(a: { key: string; label: string }): string {
+  if (a.key === "sms_consent") return "Text messages";
+  return a.label.length > 40 ? `${a.label.slice(0, 38)}…` : a.label;
+}
+
+/**
+ * Where the chat started, IP address and location, the lead's answers, then
+ * a short summary of the visitor.
+ */
 function Details({ conversation: c, visitor: v }: { conversation: Conversation; visitor: Visitor }) {
   const link = (url: string | null, title: string | null) =>
     url ? (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="text-accent underline decoration-navy/30 underline-offset-2">
+      <a href={url} target="_blank" rel="noopener noreferrer" className="text-accent underline decoration-accent/30 underline-offset-2">
         {title || pagePath(url)}
       </a>
     ) : (
       "Unknown"
     );
-  const icon = "h-[18px] w-[18px]";
   const name = v.name || v.email || "Visitor";
+  const button =
+    "press flex flex-1 items-center justify-center gap-1.5 rounded-full bg-surface py-2 text-[13px] font-medium text-accent shadow-[var(--shadow-bubble)]";
 
   return (
-    <div className="space-y-3 px-4 pb-6 pt-2">
-      <div className="flex flex-col items-center pb-2 pt-1 text-center">
-        <Avatar name={name} size="lg" online={v.online} ring="var(--color-paper)" />
-        <p className="mt-2 text-[17px] font-semibold">{name}</p>
-        <p className={`text-[13px] ${v.online ? "text-ok" : "text-muted"}`}>
-          {v.online ? "Online now" : `Last seen ${ago(v.last_seen_at)}`}
-        </p>
-        {(v.email || v.phone) && (
-          <div className="mt-3 flex gap-2">
-            {v.email && (
-              <a href={`mailto:${v.email}`} className="press flex items-center gap-1.5 rounded-full bg-surface px-3.5 py-2 text-[13px] font-medium text-accent shadow-[var(--shadow-bubble)]">
-                <MailIcon className="h-4 w-4" /> Email
-              </a>
-            )}
-            {v.phone && (
-              <a href={`tel:${v.phone.replace(/[^+\d]/g, "")}`} className="press flex items-center gap-1.5 rounded-full bg-surface px-3.5 py-2 text-[13px] font-medium text-accent shadow-[var(--shadow-bubble)]">
-                <PhoneIcon className="h-4 w-4" /> Call
-              </a>
-            )}
-          </div>
-        )}
+    <div className="space-y-5 px-4 pb-6 pt-2">
+      <div className="flex items-center gap-3 px-1">
+        <Avatar name={name} online={v.online} ring="var(--color-paper)" />
+        <div className="min-w-0">
+          <p className="truncate text-[16px] font-semibold">{name}</p>
+          <p className={`text-[13px] ${v.online ? "text-ok" : "text-muted"}`}>
+            {v.online ? "Online now" : `Last seen ${ago(v.last_seen_at)}`}
+          </p>
+        </div>
       </div>
-
-      <Card title="Right now">
-        <Row icon={<GlobeIcon className={icon} />} label="Site">{siteName(v.current_site)}</Row>
-        <Row icon={<LinkIcon className={icon} />} label="Page">{link(v.current_url, v.current_title)}</Row>
-        <Row icon={<PinIcon className={icon} />} label="Location">{place(v) || "Unknown"}</Row>
-        <Row icon={<DeviceIcon className={icon} />} label="IP address">{v.ip || "Unknown"}</Row>
-      </Card>
-
-      {c.prechat.length > 0 && (
-        <Card title="Answers">
-          {c.prechat.map((a) => (
-            <div key={a.key} className="py-2.5">
-              <dt className="text-[12px] text-muted">{a.label.length > 70 ? `${a.label.slice(0, 67)}…` : a.label}</dt>
-              <dd className="mt-0.5 break-words text-[14px]">
-                {a.key === "email" ? (
-                  <a href={`mailto:${a.value}`} className="text-accent underline decoration-navy/30 underline-offset-2">{a.value}</a>
-                ) : a.key === "phone" ? (
-                  <a href={`tel:${a.value.replace(/[^+\d]/g, "")}`} className="text-accent underline decoration-navy/30 underline-offset-2">{a.value}</a>
-                ) : (
-                  a.value
-                )}
-              </dd>
-            </div>
-          ))}
-        </Card>
+      {(v.email || v.phone) && (
+        <div className="-mt-1 flex gap-2">
+          {v.email && (
+            <a href={`mailto:${v.email}`} className={button}>
+              <MailIcon className="h-4 w-4" /> Email
+            </a>
+          )}
+          {v.phone && (
+            <a href={`tel:${v.phone.replace(/[^+\d]/g, "")}`} className={button}>
+              <PhoneIcon className="h-4 w-4" /> Call
+            </a>
+          )}
+        </div>
       )}
 
-      <Card title="This chat">
-        <Row icon={<GlobeIcon className={icon} />} label="Started on">{siteName(c.site)}</Row>
-        <Row icon={<LinkIcon className={icon} />} label="Started from">{link(c.start_url, c.start_title)}</Row>
-        <Row icon={<ChatIcon className={icon} />} label="Started">{new Date(c.created_at).toLocaleString()}</Row>
-        <Row icon={<PinIcon className={icon} />} label="Location then">{place(c) || "Unknown"}</Row>
-        <Row icon={<DeviceIcon className={icon} />} label="IP then">{c.ip || "Unknown"}</Row>
-      </Card>
-
-      <Card title="Visitor">
-        <Row icon={<DeviceIcon className={icon} />} label="Device">{device(v.user_agent)}</Row>
-        <Row icon={<GlobeIcon className={icon} />} label="First visit">
-          {new Date(v.created_at).toLocaleDateString()} on {siteName(v.first_site)}
+      <Section title="Chat started on">
+        <Row label="Site">{siteName(c.site)}</Row>
+        <Row label="Page">{link(c.start_url, c.start_title)}</Row>
+        <Row label="When">
+          {new Date(c.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
         </Row>
-        <Row icon={<LinkIcon className={icon} />} label="Came from">{v.referrer ? link(v.referrer, null) : "Direct or unknown"}</Row>
-        <Row icon={<ChatIcon className={icon} />} label="Chats">{v.chats}</Row>
-      </Card>
+        <Row label="IP address">{c.ip || v.ip || "Unknown"}</Row>
+        <Row label="Location">{place(c) || place(v) || "Unknown"}</Row>
+      </Section>
+
+      {c.prechat.length > 0 && (
+        <Section title="Lead details">
+          {c.prechat.map((a) => (
+            <Row key={a.key} label={answerLabel(a)}>
+              {a.key === "email" ? (
+                <a href={`mailto:${a.value}`} className="text-accent underline decoration-accent/30 underline-offset-2">{a.value}</a>
+              ) : a.key === "phone" ? (
+                <a href={`tel:${a.value.replace(/[^+\d]/g, "")}`} className="text-accent underline decoration-accent/30 underline-offset-2">{a.value}</a>
+              ) : (
+                a.value
+              )}
+            </Row>
+          ))}
+        </Section>
+      )}
+
+      <Section title="Visitor">
+        <Row label="Now">
+          {v.online ? link(v.current_url, v.current_title) : `Last seen ${ago(v.last_seen_at)}`}
+        </Row>
+        <Row label="Device">{device(v.user_agent)}</Row>
+        <Row label="First visit">
+          {new Date(v.created_at).toLocaleDateString(undefined, { dateStyle: "medium" })}, {siteName(v.first_site)}
+        </Row>
+        {v.referrer && <Row label="Came from">{link(v.referrer, null)}</Row>}
+        <Row label="Chats">{v.chats}</Row>
+      </Section>
     </div>
   );
 }
