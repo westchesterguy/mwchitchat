@@ -3,7 +3,7 @@ import { addMessage, adminLink, MESSAGE_MAX, messagesAfter } from "@/lib/chat";
 import { db, getSetting } from "@/lib/db";
 import { answerOf, fieldsForSite, validateAnswers } from "@/lib/fields";
 import { isSameOrigin, jsonError, overLimit } from "@/lib/guard";
-import { emailOfflineLead } from "@/lib/mail";
+import { emailLead, leadEmailMode, leadRecipients } from "@/lib/mail";
 import { notifyAgent } from "@/lib/push";
 import { pageUrl, readJson, requestOrigin, str } from "@/lib/request";
 import { getSite } from "@/lib/sites";
@@ -79,17 +79,28 @@ export async function POST(req: Request) {
       "system",
       "Michael is away right now. He has your message and details and will follow up with you.",
     );
-    after(() =>
-      emailOfflineLead({
-        domain: site.domain,
-        answers,
-        message,
-        pageUrl: url,
-        origin,
-        adminUrl: link,
-        replyTo: answerOf(answers, "email"),
-      }),
-    );
+  }
+
+  // Every new lead is emailed to the addresses in Settings, or only those
+  // that arrive while Michael is away, as he chooses there.
+  if (isNew && ((await leadEmailMode()) === "every" || !online)) {
+    const to = await leadRecipients();
+    if (to.length) {
+      after(() =>
+        emailLead({
+          to,
+          domain: site.domain,
+          answers,
+          message,
+          pageUrl: url,
+          pageTitle: title,
+          origin,
+          adminUrl: link,
+          replyTo: answerOf(answers, "email"),
+          away: !online,
+        }),
+      );
+    }
   }
 
   after(() =>

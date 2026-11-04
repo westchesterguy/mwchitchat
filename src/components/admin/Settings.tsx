@@ -12,7 +12,9 @@ import {
   CheckIcon,
   CopyIcon,
   DownloadIcon,
+  CloseIcon,
   LogoutIcon,
+  MailIcon,
   MoonIcon,
   MuteIcon,
   PlayIcon,
@@ -71,6 +73,7 @@ export function Settings({ appUrl }: { appUrl: string }) {
           <Availability />
           <Appearance />
           <Notifications />
+          <LeadEmails />
           <Sounds />
           <Questions />
           <Install appUrl={appUrl} />
@@ -90,7 +93,7 @@ function Availability() {
           <h2 className={h2}>Available for chat</h2>
           <p className="mt-1 text-[14px] text-muted">
             {online === false
-              ? "Away. Visitors see that you'll follow up, and new chats are also emailed to you."
+              ? "Away. Visitors are told you have their message and will follow up with them."
               : "Online. Visitors see that you're here and can chat with you live."}
           </p>
         </div>
@@ -373,6 +376,173 @@ function Notifications() {
           {note && <p className="mt-2 text-[13px] text-muted">{note}</p>}
         </div>
       </div>
+    </section>
+  );
+}
+
+interface EmailSettings {
+  configured: boolean;
+  from: string;
+  recipients: string[];
+  mode: "every" | "away";
+  max: number;
+}
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function LeadEmails() {
+  const [email, setEmail] = useState<EmailSettings | null>(null);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
+
+  useEffect(() => {
+    adminApi<{ email: EmailSettings }>("/api/admin/settings").then(({ ok, data }) => ok && setEmail(data.email));
+  }, []);
+
+  if (!email) {
+    return (
+      <section className={card} aria-busy>
+        <span className="skeleton block h-5 w-32" />
+        <span className="skeleton mt-4 block h-16 w-full !rounded-xl" />
+      </section>
+    );
+  }
+
+  const save = async (patch: { leadEmails?: string[]; leadEmailMode?: "every" | "away" }, done?: string) => {
+    setBusy(true);
+    setNote(null);
+    const { ok, data } = await adminApi<{ email: EmailSettings; message?: string }>("/api/admin/settings", "PUT", patch);
+    setBusy(false);
+    if (ok) {
+      setEmail(data.email);
+      if (done) setNote({ ok: true, text: done });
+    } else {
+      setNote({ ok: false, text: data.message ?? "Could not save. Try again." });
+    }
+    return ok;
+  };
+
+  const add = async () => {
+    const value = draft.trim().toLowerCase();
+    if (!value) return;
+    if (!EMAIL.test(value)) {
+      setNote({ ok: false, text: "That doesn't look like an email address." });
+      return;
+    }
+    if (email.recipients.includes(value)) {
+      setDraft("");
+      return;
+    }
+    if (await save({ leadEmails: [...email.recipients, value] }, `Added ${value}.`)) setDraft("");
+  };
+
+  const test = async () => {
+    setTesting(true);
+    setNote(null);
+    const { ok, data } = await adminApi<{ to?: string[]; message?: string }>("/api/admin/email/test", "POST", {});
+    setTesting(false);
+    setNote(
+      ok
+        ? { ok: true, text: `Sent to ${(data.to ?? []).join(", ")}. It should arrive within a minute; check spam if it doesn't.` }
+        : { ok: false, text: `Not sent: ${data.message ?? "the email service did not answer."}` },
+    );
+  };
+
+  const full = email.recipients.length >= email.max;
+
+  return (
+    <section className={card}>
+      <div className="flex items-start gap-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-tint text-accent">
+          <MailIcon />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className={h2}>Lead emails</h2>
+          <p className="mt-1 text-[14px] text-muted">
+            Each new chat is emailed here with the visitor&rsquo;s answers, first message, the page they started on, location and
+            IP address. Reply to the email to write to the visitor directly.
+          </p>
+        </div>
+      </div>
+
+      {!email.configured && (
+        <p className="mt-3 rounded-xl bg-canvas p-3 text-[13px] text-warn">
+          Email sending is not set up on the server yet: RESEND_API_KEY is missing in Vercel.
+        </p>
+      )}
+
+      <ul className="mt-4 space-y-2">
+        {email.recipients.map((r) => (
+          <li key={r} className="anim-rise flex items-center gap-2 rounded-xl border border-line bg-paper py-1.5 pl-3.5 pr-1.5">
+            <span className="min-w-0 flex-1 truncate text-[15px]">{r}</span>
+            <button
+              type="button"
+              aria-label={`Remove ${r}`}
+              disabled={busy}
+              onClick={() => save({ leadEmails: email.recipients.filter((x) => x !== r) }, `Removed ${r}.`)}
+              className="press rounded-full p-2 text-muted hover:bg-surface hover:text-danger disabled:opacity-40"
+            >
+              <CloseIcon className="h-4 w-4" />
+            </button>
+          </li>
+        ))}
+        {email.recipients.length === 0 && (
+          <li className="rounded-xl bg-canvas p-3 text-[14px] text-muted">No addresses yet. Lead emails are off until you add one.</li>
+        )}
+      </ul>
+
+      {!full && (
+        <form
+          noValidate
+          className="mt-2 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            add();
+          }}
+        >
+          <label className="min-w-0 flex-1">
+            <span className="sr-only">Email address</span>
+            <input
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={draft}
+              maxLength={254}
+              placeholder="Add an email address"
+              onChange={(e) => setDraft(e.target.value)}
+              className={input}
+            />
+          </label>
+          <button type="submit" className={secondary} disabled={busy || !draft.trim()}>
+            {busy ? <Spinner /> : <PlusIcon className="h-4 w-4" />} Add
+          </button>
+        </form>
+      )}
+
+      <div className="mt-4 flex items-center gap-4 border-t border-line pt-4">
+        <div className="flex-1">
+          <p className="text-[15px] font-medium">Email every new lead</p>
+          <p className="mt-0.5 text-[13px] text-muted">
+            {email.mode === "every" ? "On. Every new chat is emailed, online or away." : "Off. Only chats that start while you're away are emailed."}
+          </p>
+        </div>
+        <Switch
+          checked={email.mode === "every"}
+          disabled={busy}
+          onChange={(on) => save({ leadEmailMode: on ? "every" : "away" })}
+          label="Email every new lead"
+        />
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <button type="button" className={secondary} onClick={test} disabled={testing || email.recipients.length === 0 || !email.configured}>
+          {testing ? <Spinner /> : <MailIcon className="h-4 w-4" />} Send a test email
+        </button>
+        <span className="min-w-0 break-all text-[12px] text-faint">From {email.from.replace(/^.*<(.+)>$/, "$1")}</span>
+      </div>
+      {note && <p className={`anim-fade mt-3 break-words text-[14px] ${note.ok ? "text-ok" : "text-danger"}`}>{note.text}</p>}
     </section>
   );
 }

@@ -9,8 +9,12 @@ Michael from his own app. It replaces Tawk.to.
   from the browser and wrapped as an Android APK. It shows every chat with the
   site it started on, the page the visitor is on right now, their country, city
   and IP address, and their answers. He edits the questionnaire in Settings.
-- **When Michael is away** (the switch at the top of the app), new chats are
-  also emailed to him, and the visitor is told he will follow up.
+- **Lead emails.** Each new chat is emailed to the addresses entered in
+  Settings, Lead emails: the answers, first message, the page it started on,
+  location and IP address, with the visitor as Reply-To. Every lead, or only
+  those that arrive while he is away. A test button there proves delivery.
+- **When Michael is away** (the switch at the top of the app), the visitor is
+  told he has their message and will follow up.
 - **Notifications** reach his phone when a chat starts or a visitor writes,
   through Web Push. No Firebase project is needed.
 
@@ -22,8 +26,9 @@ Michael from his own app. It replaces Tawk.to.
 2. **Admin password.** Settings, Environment Variables: add `ADMIN_PASSWORD`
    (Production and Preview), marked Sensitive. Changing it signs every device
    out.
-3. **Email when away (optional).** Add `RESEND_API_KEY`, the same key the sites
-   use. Without it, away chats still reach the app, they are just not emailed.
+3. **Lead emails.** Add `RESEND_API_KEY`, the same key the sites use. The
+   sender's domain must be verified in Resend. Without the key, chats still
+   reach the app, they are just not emailed.
 4. Redeploy.
 
 Everything else is generated on first use and kept in the database: the key
@@ -34,8 +39,9 @@ notifications.
 | --- | --- | --- |
 | `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING` | yes | Added by the Supabase integration |
 | `ADMIN_PASSWORD` | yes | The admin app's password |
-| `RESEND_API_KEY` | for away email | Same key as the sites |
-| `LEAD_TO`, `LEAD_FROM` | no | Override the inbox and sender for away email |
+| `RESEND_API_KEY` | for lead email | Same key as the sites |
+| `LEAD_FROM` | no | Sender for lead email; its domain must be verified in Resend |
+| `LEAD_TO` | no | Inbox used until addresses are saved in Settings |
 | `APP_URL` | no | This app's public address, if it differs from the request's |
 | `ALLOWED_ORIGINS`, `FRAME_ANCESTORS` | no | Override which sites may embed the chat |
 
