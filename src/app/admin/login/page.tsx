@@ -12,16 +12,19 @@ export const metadata: Metadata = {
 export default async function Login() {
   if (await isAdmin()) redirect("/admin");
   return (
-    <div className="on-navy flex min-h-dvh flex-col items-center justify-center bg-navy px-6 text-white">
-      <Mark className="w-16" />
-      <h1 className="mt-5 font-display text-[26px]">MW Chat</h1>
-      {adminConfigured() ? (
-        <LoginForm />
-      ) : (
-        <p className="mt-6 max-w-[300px] text-center text-[14px] text-white/80">
-          Sign-in is not set up yet. Add ADMIN_PASSWORD to this project in Vercel, then redeploy.
-        </p>
-      )}
+    <div className="on-navy flex min-h-dvh flex-col items-center justify-center bg-navy px-6 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] text-white">
+      <div className="anim-rise flex w-full max-w-[340px] flex-col items-center">
+        <Mark className="w-16" />
+        <h1 className="mt-6 font-display text-[30px] leading-none">MW Chat</h1>
+        <p className="mt-2 text-[14px] text-white/65">Conversations from your websites</p>
+        {adminConfigured() ? (
+          <LoginForm />
+        ) : (
+          <p className="mt-8 text-center text-[14px] text-white/80">
+            Sign-in is not set up yet. Add ADMIN_PASSWORD to this project in Vercel, then redeploy.
+          </p>
+        )}
+      </div>
     </div>
   );
 }

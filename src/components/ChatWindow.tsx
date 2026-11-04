@@ -1,8 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { contact } from "@/lib/sites";
-import { Mark } from "./Mark";
+import { contact, HEADSHOT_URL } from "@/lib/sites";
+import { Composer } from "./chat/Composer";
+import { Thread } from "./chat/Thread";
+import { useMessages, type ChatMessage } from "./chat/useMessages";
+import { Avatar } from "./ui/Avatar";
+import { ChatIcon, ChevronDownIcon, PhoneIcon, SendIcon, Spinner } from "./ui/icons";
+import { Menu, type MenuItem } from "./ui/Menu";
 
 type FieldType = "text" | "email" | "tel" | "textarea" | "select" | "checkbox";
 interface Field {
@@ -18,12 +23,6 @@ interface Config {
   phoneHref: string;
   fields: Field[];
 }
-interface Message {
-  id: number;
-  sender: "visitor" | "agent" | "system";
-  body: string;
-  at: string;
-}
 interface Conversation {
   id: string;
   status: "open" | "closed";
@@ -33,6 +32,8 @@ interface Page {
   title: string | null;
   referrer: string | null;
 }
+
+const MICHAEL = "Michael Winter";
 
 /** Messages to the page around the frame (widget.js). Nothing sensitive. */
 function tellParent(type: string) {
@@ -56,39 +57,34 @@ function readToken(): string {
   return token;
 }
 
-const time = new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
-
+/**
+ * The visitor's chat window, shown in a frame on the sites by widget.js:
+ * Michael's greeting and the pre-chat questions, then live messages.
+ */
 export function ChatWindow({ site, privacyUrl }: { site: string; privacyUrl: string }) {
   const [phase, setPhase] = useState<"loading" | "form" | "chat" | "error">("loading");
   const [config, setConfig] = useState<Config | null>(null);
   const [conversation, setConversation] = useState<Conversation | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [inFrame, setInFrame] = useState(false);
+  const { messages, lastId, merge, reset, optimistic, settle, remove } = useMessages();
 
   const token = useRef("");
   const page = useRef<Page>({ url: null, title: null, referrer: null });
   const visible = useRef(true);
-  const lastId = useRef(0);
 
   const api = useCallback(async (path: string, body?: unknown) => {
-    const res = await fetch(path, {
-      method: body === undefined ? "GET" : "POST",
-      headers: { "content-type": "application/json", "x-mwchat-token": token.current },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      cache: "no-store",
-    });
-    const data = await res.json().catch(() => ({}));
-    return { ok: res.ok, status: res.status, data };
-  }, []);
-
-  const merge = useCallback((incoming: Message[]) => {
-    if (!incoming.length) return;
-    setMessages((prev) => {
-      const seen = new Set(prev.map((m) => m.id));
-      const fresh = incoming.filter((m) => !seen.has(m.id));
-      return fresh.length ? [...prev, ...fresh] : prev;
-    });
-    lastId.current = Math.max(lastId.current, ...incoming.map((m) => m.id));
+    try {
+      const res = await fetch(path, {
+        method: body === undefined ? "GET" : "POST",
+        headers: { "content-type": "application/json", "x-mwchat-token": token.current },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      return { ok: res.ok, status: res.status, data };
+    } catch {
+      return { ok: false, status: 0, data: {} as Record<string, never> };
+    }
   }, []);
 
   // First load: questions, and any chat already under way.
@@ -110,48 +106,41 @@ export function ChatWindow({ site, privacyUrl }: { site: string; privacyUrl: str
     tellParent("mwchat:ready");
 
     (async () => {
-      try {
-        const [c, s] = await Promise.all([
-          api(`/api/v/config?site=${encodeURIComponent(site)}`),
-          api(`/api/v/state`),
-        ]);
-        if (!c.ok) throw new Error("config");
-        setConfig(c.data);
-        if (s.ok && s.data.conversation) {
-          setConversation(s.data.conversation);
-          merge(s.data.messages);
-          setPhase("chat");
-        } else {
-          setPhase("form");
-        }
-      } catch {
+      const [c, s] = await Promise.all([api(`/api/v/config?site=${encodeURIComponent(site)}`), api(`/api/v/state`)]);
+      if (!c.ok) {
         setPhase("error");
+        return;
+      }
+      setConfig(c.data);
+      if (s.ok && s.data.conversation) {
+        setConversation(s.data.conversation);
+        merge(s.data.messages);
+        setPhase("chat");
+      } else {
+        setPhase("form");
       }
     })();
 
     return () => window.removeEventListener("message", onMessage);
   }, [api, merge, site]);
 
-  // While a chat exists: poll for replies. Faster while the window is open.
+  // While a chat exists: poll for replies, faster while the window is open.
   useEffect(() => {
     if (!conversation) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
-
     const tick = async () => {
-      try {
-        const { ok, data } = await api(`/api/v/state?after=${lastId.current}`);
-        if (ok && data.conversation) {
-          const incoming = data.messages as Message[];
-          if (!visible.current && incoming.some((m) => m.sender === "agent" && m.id > lastId.current)) {
-            tellParent("mwchat:unread");
-          }
-          merge(incoming);
-          setConversation((c) => (c && c.status !== data.conversation.status ? data.conversation : c));
-          setConfig((c) => (c && c.online !== data.online ? { ...c, online: data.online } : c));
-          if (data.conversation.status === "closed") tellParent("mwchat:ended");
+      const { ok, data } = await api(`/api/v/state?after=${lastId.current}`);
+      if (ok && data.conversation) {
+        const incoming = data.messages as ChatMessage[];
+        if (!visible.current && incoming.some((m) => m.sender === "agent" && m.id > lastId.current)) {
+          tellParent("mwchat:unread");
         }
-      } catch {}
+        merge(incoming);
+        setConversation((c) => (c && c.status !== data.conversation.status ? data.conversation : c));
+        setConfig((c) => (c && c.online !== data.online ? { ...c, online: data.online } : c));
+        if (data.conversation.status === "closed") tellParent("mwchat:ended");
+      }
       if (!stopped) timer = setTimeout(tick, visible.current ? 2500 : 8000);
     };
     timer = setTimeout(tick, 2500);
@@ -159,15 +148,14 @@ export function ChatWindow({ site, privacyUrl }: { site: string; privacyUrl: str
       stopped = true;
       clearTimeout(timer);
     };
-  }, [conversation, api, merge]);
+  }, [conversation, api, merge, lastId]);
 
   const start = async (answers: Record<string, string | boolean>, message: string) => {
     const { ok, data } = await api("/api/v/start", { site, page: page.current, answers, message });
     if (!ok) return data as { field?: string; message?: string; error?: string };
-    setConversation(data.conversation);
-    setMessages([]);
-    lastId.current = 0;
+    reset();
     merge(data.messages);
+    setConversation(data.conversation);
     setConfig((c) => (c ? { ...c, online: data.online } : c));
     setPhase("chat");
     tellParent("mwchat:started");
@@ -175,10 +163,10 @@ export function ChatWindow({ site, privacyUrl }: { site: string; privacyUrl: str
   };
 
   const send = async (text: string) => {
+    const temp = optimistic("visitor", text);
     const { ok, status, data } = await api("/api/v/message", { body: text });
-    if (ok) merge([data.message]);
-    else if (status === 409) setConversation((c) => (c ? { ...c, status: "closed" } : c));
-    return ok;
+    settle(temp, ok ? data.message : null);
+    if (status === 409) setConversation((c) => (c ? { ...c, status: "closed" } : c));
   };
 
   const end = async () => {
@@ -197,58 +185,53 @@ export function ChatWindow({ site, privacyUrl }: { site: string; privacyUrl: str
   };
 
   const open = conversation?.status === "open";
+  const online = config?.online ?? true;
+  const menu: MenuItem[] = [
+    { label: `Call ${contact.phoneDisplay}`, icon: <PhoneIcon className="h-[18px] w-[18px]" />, href: `tel:${contact.phone}` },
+    ...(phase === "chat" && open
+      ? [{ label: "End chat", icon: <ChatIcon className="h-[18px] w-[18px]" />, onSelect: end, danger: true }]
+      : []),
+  ];
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-white text-ink">
-      <header className="on-navy flex items-center gap-3 bg-navy px-4 py-3 text-white">
-        <Mark className="w-7" />
+    <div className="flex h-dvh flex-col overflow-hidden bg-canvas text-ink">
+      <header className="on-navy flex items-center gap-3 bg-navy py-3 pl-4 pr-2 text-white">
+        <Avatar name={MICHAEL} src={HEADSHOT_URL} online={online} ring="#002349" />
         <div className="min-w-0 flex-1">
-          <p className="font-display text-[17px] leading-tight">Michael Winter</p>
-          {config && (
-            <p className="flex items-center gap-1.5 text-[12px] text-white/75">
-              <span
-                aria-hidden
-                className={`inline-block h-2 w-2 rounded-full ${config.online ? "bg-[#4cc28a]" : "bg-white/40"}`}
-              />
-              {config.online ? "Online now" : "Away, will follow up by email"}
-            </p>
-          )}
+          <p className="truncate text-[16px] font-semibold leading-tight">{MICHAEL}</p>
+          <p className="mt-0.5 truncate text-[12px] text-white/70">
+            {config ? (online ? "Online now" : "Away, will follow up") : "The Westchester Guy"}
+          </p>
         </div>
-        {phase === "chat" && open && (
-          <button
-            type="button"
-            onClick={end}
-            className="rounded-sm px-2 py-1 text-[12px] uppercase tracking-[0.08em] text-white/80 hover:text-white"
-          >
-            End chat
-          </button>
-        )}
+        <Menu items={menu} buttonClass="text-white/90 hover:bg-white/10" />
         {inFrame && (
           <button
             type="button"
             onClick={() => tellParent("mwchat:close")}
-            aria-label="Close chat"
-            className="-mr-1 rounded-sm p-1.5 text-white/80 hover:text-white"
+            aria-label="Minimize chat"
+            className="press rounded-full p-2 text-white/90 hover:bg-white/10"
           >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
-              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-            </svg>
+            <ChevronDownIcon className="h-6 w-6" />
           </button>
         )}
       </header>
 
-      {phase === "loading" && <p className="m-auto text-sm text-muted">Loading…</p>}
+      {phase === "loading" && (
+        <div className="flex-1 space-y-3 px-4 py-6" aria-label="Loading" role="status">
+          <span className="skeleton block h-16 w-4/5 !rounded-2xl" />
+          <span className="skeleton block h-64 w-full !rounded-2xl" />
+        </div>
+      )}
 
-      {phase === "error" && config === null && (
-        <div className="m-auto max-w-[280px] text-center text-sm text-ink-soft">
-          <p>The chat isn&rsquo;t available right now.</p>
-          <p className="mt-2">
-            You can reach Michael at{" "}
-            <a className="underline" href={`tel:${contact.phone}`}>
-              {contact.phoneDisplay}
-            </a>
-            .
-          </p>
+      {phase === "error" && (
+        <div className="anim-fade m-auto max-w-[300px] px-6 text-center">
+          <p className="text-[15px] font-medium">The chat isn&rsquo;t available right now.</p>
+          <a
+            href={`tel:${contact.phone}`}
+            className="press mt-4 inline-flex items-center gap-2 rounded-full bg-navy px-5 py-2.5 text-[14px] font-medium text-white"
+          >
+            <PhoneIcon className="h-4 w-4" /> Call {contact.phoneDisplay}
+          </a>
         </div>
       )}
 
@@ -256,122 +239,35 @@ export function ChatWindow({ site, privacyUrl }: { site: string; privacyUrl: str
         <PrechatForm config={config} privacyUrl={privacyUrl} onSubmit={start} />
       )}
 
-      {phase === "chat" && config && (
+      {phase === "chat" && (
         <>
-          <MessageList messages={messages} />
+          <Thread
+            messages={messages}
+            mine="visitor"
+            otherName="Michael"
+            otherAvatar={<Avatar name={MICHAEL} src={HEADSHOT_URL} size="sm" />}
+            onRetry={(m) => {
+              remove(m.id);
+              send(m.body);
+            }}
+          />
           {open ? (
-            <Composer onSend={send} />
+            <Composer onSend={send} placeholder="Message" autoFocus />
           ) : (
-            <div className="border-t border-line px-4 py-4 text-center">
-              <p className="text-sm text-ink-soft">This chat has ended.</p>
+            <div className="anim-rise border-t border-line bg-paper px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 text-center">
+              <p className="text-[14px] text-muted">This chat has ended.</p>
               <button
                 type="button"
                 onClick={newChat}
-                className="mt-3 inline-flex items-center rounded-sm bg-navy px-5 py-2.5 text-[13px] font-medium uppercase tracking-[0.08em] text-white hover:bg-navy-light"
+                className="press mt-3 inline-flex h-11 items-center gap-2 rounded-full bg-navy px-6 text-[14px] font-semibold text-white shadow-[0_2px_8px_rgba(0,35,73,0.3)]"
               >
-                Start a new chat
+                <ChatIcon className="h-[18px] w-[18px]" /> Start a new chat
               </button>
             </div>
           )}
         </>
       )}
     </div>
-  );
-}
-
-function MessageList({ messages }: { messages: Message[] }) {
-  const end = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    end.current?.scrollIntoView({ block: "end" });
-  }, [messages.length]);
-
-  return (
-    <div role="log" aria-live="polite" className="flex-1 space-y-2 overflow-y-auto px-4 py-4">
-      {messages.map((m, i) => {
-        if (m.sender === "system") {
-          return (
-            <p key={m.id} className="px-6 py-1 text-center text-[12px] leading-snug text-muted">
-              {m.body}
-            </p>
-          );
-        }
-        const mine = m.sender === "visitor";
-        const firstOfRun = messages[i - 1]?.sender !== m.sender;
-        return (
-          <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
-            {!mine && firstOfRun && <span className="mb-1 ml-1 text-[11px] text-muted">Michael</span>}
-            <div
-              className={`max-w-[85%] whitespace-pre-wrap break-words rounded-lg px-3.5 py-2 text-[14px] leading-relaxed ${
-                mine ? "rounded-br-sm bg-navy text-white" : "rounded-bl-sm bg-bubble text-ink"
-              }`}
-            >
-              {m.body}
-            </div>
-            <span className="mx-1 mt-0.5 text-[10px] text-muted">{time.format(new Date(m.at))}</span>
-          </div>
-        );
-      })}
-      <div ref={end} />
-    </div>
-  );
-}
-
-function Composer({ onSend }: { onSend: (text: string) => Promise<boolean> }) {
-  const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  const submit = async () => {
-    const value = text.trim();
-    if (!value || sending) return;
-    setSending(true);
-    setFailed(false);
-    const ok = await onSend(value);
-    setSending(false);
-    if (ok) setText("");
-    else setFailed(true);
-  };
-
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        submit();
-      }}
-      className="border-t border-line px-3 py-3"
-    >
-      {failed && <p className="mb-2 text-[12px] text-danger">That didn&rsquo;t send. Please try again.</p>}
-      <div className="flex items-end gap-2">
-        <label htmlFor="mwchat-input" className="sr-only">
-          Message
-        </label>
-        <textarea
-          id="mwchat-input"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              submit();
-            }
-          }}
-          rows={1}
-          maxLength={2000}
-          placeholder="Write a message"
-          className="max-h-32 min-h-[42px] flex-1 resize-none rounded-sm border border-line bg-paper px-3 py-2.5 text-[14px] outline-none focus:border-navy"
-        />
-        <button
-          type="submit"
-          disabled={sending || !text.trim()}
-          aria-label="Send"
-          className="flex h-[42px] w-[42px] items-center justify-center rounded-sm bg-navy text-white disabled:opacity-40"
-        >
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
-            <path d="M4 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-      </div>
-    </form>
   );
 }
 
@@ -395,7 +291,7 @@ function PrechatForm({
 
   const set = (key: string, value: string | boolean) => setAnswers((a) => ({ ...a, [key]: value }));
   const input =
-    "w-full rounded-sm border border-line bg-paper px-3 py-2.5 text-[14px] outline-none focus:border-navy";
+    "w-full rounded-xl border bg-white px-3.5 text-[15px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-navy/50 focus:shadow-[0_0_0_3px_rgba(0,35,73,0.08)]";
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -405,131 +301,146 @@ function PrechatForm({
     setErrors({});
     const problem = await onSubmit(answers, message);
     setBusy(false);
-    if (problem?.field) setErrors({ [problem.field]: problem.message ?? "Please check this field." });
+    if (problem?.field) setErrors({ [problem.field]: problem.message ?? "Please check this." });
     else if (problem) setFailed(true);
   };
 
+  const greeting = config.online
+    ? "Hello, and thanks for visiting. Tell me a little about yourself and I'll reply here."
+    : "Thanks for visiting. I'm away right now. Leave your details and a message, and I'll follow up.";
+
   return (
-    <form onSubmit={submit} className="flex-1 overflow-y-auto px-4 py-4">
-      <p className="text-[14px] leading-relaxed text-ink-soft">
-        {config.online
-          ? "Michael is online. Tell him a little about yourself to start a chat."
-          : "Michael is away right now. Leave your details and a message, and he will follow up."}
-      </p>
-
-      <div className="mt-4 space-y-3.5">
-        {config.fields.map((f) => {
-          const id = `f-${f.key}`;
-          const error = errors[f.key];
-          if (f.type === "checkbox") {
-            return (
-              <div key={f.key}>
-                <div className="flex items-start gap-2.5">
-                  <input
-                    id={id}
-                    type="checkbox"
-                    checked={answers[f.key] === true}
-                    onChange={(e) => set(f.key, e.target.checked)}
-                    className="mt-0.5 h-4 w-4 shrink-0 accent-navy"
-                  />
-                  <label htmlFor={id} className="text-[12px] leading-relaxed text-ink-soft">
-                    {f.label}
-                    {f.required && <span className="text-danger"> *</span>}
-                  </label>
-                </div>
-                {error && <p className="mt-1 text-[12px] text-danger">{error}</p>}
-              </div>
-            );
-          }
-          return (
-            <div key={f.key}>
-              <label htmlFor={id} className="mb-1 block text-[12px] font-medium text-ink-soft">
-                {f.label}
-                {f.required && <span className="text-danger"> *</span>}
-              </label>
-              {f.type === "select" ? (
-                <select
-                  id={id}
-                  required={f.required}
-                  value={(answers[f.key] as string) ?? ""}
-                  onChange={(e) => set(f.key, e.target.value)}
-                  className={input}
-                >
-                  <option value="">Choose one</option>
-                  {f.options.map((o) => (
-                    <option key={o}>{o}</option>
-                  ))}
-                </select>
-              ) : f.type === "textarea" ? (
-                <textarea
-                  id={id}
-                  required={f.required}
-                  rows={3}
-                  maxLength={2000}
-                  value={(answers[f.key] as string) ?? ""}
-                  onChange={(e) => set(f.key, e.target.value)}
-                  className={input}
-                />
-              ) : (
-                <input
-                  id={id}
-                  type={f.type}
-                  required={f.required}
-                  maxLength={200}
-                  autoComplete={f.type === "email" ? "email" : f.type === "tel" ? "tel" : f.key === "name" ? "name" : undefined}
-                  value={(answers[f.key] as string) ?? ""}
-                  onChange={(e) => set(f.key, e.target.value)}
-                  className={input}
-                />
-              )}
-              {error && <p className="mt-1 text-[12px] text-danger">{error}</p>}
-            </div>
-          );
-        })}
-
-        <div>
-          <label htmlFor="f-message" className="mb-1 block text-[12px] font-medium text-ink-soft">
-            Your message<span className="text-danger"> *</span>
-          </label>
-          <textarea
-            id="f-message"
-            required
-            rows={3}
-            maxLength={2000}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            className={input}
-          />
-          {errors.message && <p className="mt-1 text-[12px] text-danger">{errors.message}</p>}
+    <form onSubmit={submit} className="scroll-thin flex-1 overflow-y-auto px-3 pb-6 pt-4 sm:px-4">
+      <div className="anim-rise flex items-end gap-2">
+        <Avatar name={MICHAEL} src={HEADSHOT_URL} size="sm" />
+        <div className="flex max-w-[85%] flex-col items-start">
+          <span className="mb-1 ml-3 text-[11px] font-medium text-muted">Michael</span>
+          <p className="rounded-[18px] rounded-bl-[6px] bg-bubble px-3.5 py-2.5 text-[15px] leading-[1.4] shadow-[var(--shadow-bubble)]">
+            {greeting}
+          </p>
         </div>
       </div>
 
-      {failed && (
-        <p className="mt-3 text-[12px] text-danger">
-          Something went wrong. Please try again, or call Michael at{" "}
-          <a className="underline" href={config.phoneHref}>
-            {config.phone}
-          </a>
-          .
-        </p>
-      )}
+      <div className="anim-rise mt-4 rounded-2xl bg-white p-4 shadow-[var(--shadow-card)]" style={{ animationDelay: "60ms" }}>
+        <div className="space-y-3.5">
+          {config.fields.map((f) => {
+            const id = `f-${f.key}`;
+            const error = errors[f.key];
+            const border = error ? "border-danger/60" : "border-line";
+            if (f.type === "checkbox") {
+              return (
+                <div key={f.key}>
+                  <label htmlFor={id} className="flex cursor-pointer items-start gap-3">
+                    <input
+                      id={id}
+                      type="checkbox"
+                      checked={answers[f.key] === true}
+                      onChange={(e) => set(f.key, e.target.checked)}
+                      className="mt-0.5 h-[18px] w-[18px] shrink-0 cursor-pointer rounded accent-navy"
+                    />
+                    <span className="text-[12px] leading-relaxed text-muted">
+                      {f.label}
+                      {f.required && <span className="text-danger"> *</span>}
+                    </span>
+                  </label>
+                  {error && <p className="anim-fade mt-1 text-[12px] text-danger">{error}</p>}
+                </div>
+              );
+            }
+            return (
+              <div key={f.key}>
+                <label htmlFor={id} className="mb-1.5 block text-[13px] font-medium text-ink-soft">
+                  {f.label}
+                  {f.required && <span className="text-danger"> *</span>}
+                </label>
+                {f.type === "select" ? (
+                  <span className="relative block">
+                    <select
+                      id={id}
+                      required={f.required}
+                      value={(answers[f.key] as string) ?? ""}
+                      onChange={(e) => set(f.key, e.target.value)}
+                      className={`${input} ${border} h-11 appearance-none pr-10 ${answers[f.key] ? "" : "text-faint"}`}
+                    >
+                      <option value="">Choose one</option>
+                      {f.options.map((o) => (
+                        <option key={o} className="text-ink">
+                          {o}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-faint" />
+                  </span>
+                ) : f.type === "textarea" ? (
+                  <textarea
+                    id={id}
+                    required={f.required}
+                    rows={3}
+                    maxLength={2000}
+                    value={(answers[f.key] as string) ?? ""}
+                    onChange={(e) => set(f.key, e.target.value)}
+                    className={`${input} ${border} py-2.5`}
+                  />
+                ) : (
+                  <input
+                    id={id}
+                    type={f.type}
+                    required={f.required}
+                    maxLength={200}
+                    autoComplete={f.type === "email" ? "email" : f.type === "tel" ? "tel" : f.key === "name" ? "name" : undefined}
+                    inputMode={f.type === "tel" ? "tel" : f.type === "email" ? "email" : undefined}
+                    value={(answers[f.key] as string) ?? ""}
+                    onChange={(e) => set(f.key, e.target.value)}
+                    className={`${input} ${border} h-11`}
+                  />
+                )}
+                {error && <p className="anim-fade mt-1 text-[12px] text-danger">{error}</p>}
+              </div>
+            );
+          })}
 
-      <button
-        type="submit"
-        disabled={busy}
-        className="mt-5 w-full rounded-sm bg-navy px-5 py-3 text-[13px] font-medium uppercase tracking-[0.08em] text-white hover:bg-navy-light disabled:opacity-50"
-      >
-        {busy ? "Starting…" : config.online ? "Start chat" : "Send message"}
-      </button>
+          <div>
+            <label htmlFor="f-message" className="mb-1.5 block text-[13px] font-medium text-ink-soft">
+              Your message<span className="text-danger"> *</span>
+            </label>
+            <textarea
+              id="f-message"
+              required
+              rows={3}
+              maxLength={2000}
+              value={message}
+              placeholder="How can I help?"
+              onChange={(e) => setMessage(e.target.value)}
+              className={`${input} ${errors.message ? "border-danger/60" : "border-line"} resize-none py-2.5`}
+            />
+            {errors.message && <p className="anim-fade mt-1 text-[12px] text-danger">{errors.message}</p>}
+          </div>
+        </div>
 
-      <p className="mt-4 text-[11px] leading-relaxed text-muted">
+        {failed && (
+          <p className="anim-fade mt-3 text-[13px] text-danger">
+            That didn&rsquo;t go through. Please try again, or call{" "}
+            <a className="underline" href={config.phoneHref}>
+              {config.phone}
+            </a>
+            .
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={busy}
+          className="press mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-navy text-[15px] font-semibold text-white shadow-[0_2px_10px_rgba(0,35,73,0.3)] hover:bg-navy-light disabled:opacity-70"
+        >
+          {busy ? <Spinner /> : <SendIcon className="h-[18px] w-[18px]" strokeWidth={2} />}
+          {busy ? "Starting" : config.online ? "Start chat" : "Send message"}
+        </button>
+      </div>
+
+      <p className="mt-3 px-2 text-center text-[11px] leading-relaxed text-faint">
         Chats are saved with your approximate location and IP address so Michael can follow up.{" "}
         <a href={privacyUrl} target="_blank" rel="noopener noreferrer" className="underline">
           Privacy Policy
-        </a>
-        . Prefer to call?{" "}
-        <a href={config.phoneHref} className="underline">
-          {config.phone}
         </a>
       </p>
     </form>

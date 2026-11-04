@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Spinner } from "../ui/icons";
 
 export function LoginForm() {
   const [password, setPassword] = useState("");
@@ -15,24 +16,24 @@ export function LoginForm() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ password }),
-    });
-    setBusy(false);
-    if (res.ok) {
+    }).catch(() => null);
+    if (res?.ok) {
       window.location.href = "/admin";
       return;
     }
+    setBusy(false);
     setError(
-      res.status === 429
+      res?.status === 429
         ? "Too many attempts. Wait a few minutes and try again."
-        : res.status === 401
+        : res?.status === 401
           ? "That password is not right."
-          : "Sign-in failed. Please try again.",
+          : "Sign-in failed. Check your connection and try again.",
     );
   };
 
   return (
-    <form onSubmit={submit} className="mt-8 w-full max-w-[300px]">
-      <label htmlFor="password" className="mb-1.5 block text-[12px] uppercase tracking-[0.08em] text-white/70">
+    <form onSubmit={submit} className="mt-10 w-full">
+      <label htmlFor="password" className="sr-only">
         Password
       </label>
       <input
@@ -40,17 +41,21 @@ export function LoginForm() {
         type="password"
         autoComplete="current-password"
         required
+        placeholder="Password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        className="w-full rounded-sm border border-white/30 bg-white/10 px-3 py-3 text-[15px] text-white outline-none focus:border-white"
+        className={`h-[52px] w-full rounded-2xl border bg-white/10 px-4 text-[16px] text-white outline-none transition-[border-color,background-color] placeholder:text-white/45 focus:bg-white/15 ${
+          error ? "border-[#ffb4a8]" : "border-white/20 focus:border-white/60"
+        }`}
       />
-      {error && <p className="mt-2 text-[13px] text-[#ffb4a8]">{error}</p>}
+      {error && <p className="anim-fade mt-2 px-1 text-[13px] text-[#ffc9bf]">{error}</p>}
       <button
         type="submit"
-        disabled={busy}
-        className="mt-5 w-full rounded-sm bg-white px-5 py-3 text-[13px] font-medium uppercase tracking-[0.08em] text-navy disabled:opacity-60"
+        disabled={busy || !password}
+        className="press mt-4 flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-white text-[15px] font-semibold text-navy shadow-[0_6px_20px_rgba(0,0,0,0.25)] disabled:opacity-60"
       >
-        {busy ? "Signing in…" : "Sign in"}
+        {busy && <Spinner />}
+        {busy ? "Signing in" : "Sign in"}
       </button>
     </form>
   );

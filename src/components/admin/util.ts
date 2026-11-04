@@ -73,19 +73,6 @@ export function place(v: { city?: string | null; region?: string | null; country
   return [v.city, v.region, countryName(v.country)].filter(Boolean).join(", ");
 }
 
-export function ago(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
-  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
-
-export function clock(iso: string): string {
-  return new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-}
-
 /** Browser and system from a user-agent string, roughly. */
 export function device(ua: string | null | undefined): string {
   if (!ua) return "Unknown";

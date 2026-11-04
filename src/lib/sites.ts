@@ -63,5 +63,14 @@ export const DEFAULT_FRAME_ANCESTORS = [
   "http://localhost:*",
 ];
 
-/** The MW mark, served from the hub rather than copied into this repo. */
-export const MARK_URL = `${HUB}/images/mw-lockup-white-v2.png`;
+/**
+ * Brand images, served from the hub rather than copied into this repo.
+ * NEXT_PUBLIC_ASSET_ORIGIN points them elsewhere (a local copy for testing).
+ */
+const ASSETS = process.env.NEXT_PUBLIC_ASSET_ORIGIN ?? HUB;
+
+/** The MW mark: the dog over MW, white, for navy grounds. */
+export const MARK_URL = `${ASSETS}/images/mw-lockup-white-v2.png`;
+
+/** Michael's headshot, as on the hub's About page. */
+export const HEADSHOT_URL = `${ASSETS}/michael-winter-headshot.jpg`;

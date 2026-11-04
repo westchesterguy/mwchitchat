@@ -31,6 +31,8 @@ Postgres.js v4 (Supabase, pooled, `prepare: false`) · Web Push · Resend.
 - `src/app/api/v/`: visitor endpoints (the widget and chat window)
 - `src/app/api/admin/`: admin endpoints, all behind `adminGuard`
 - `src/components/ChatWindow.tsx`: the visitor's chat window
+- `src/components/chat/`: the message thread, reply bar and message state both sides share
+- `src/components/ui/`: icons, avatar, switch, bottom sheet, menu
 - `src/components/admin/`: the admin app
 - `public/widget.js`: the loader the sites include; `public/sw.js`: notifications
 

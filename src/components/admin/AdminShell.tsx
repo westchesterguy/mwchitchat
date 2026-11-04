@@ -2,66 +2,84 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Mark } from "../Mark";
+import { SettingsIcon } from "../ui/icons";
+import { Inbox } from "./Inbox";
 import { adminApi } from "./util";
 
-/** Header for every signed-in screen: brand, online switch, navigation. */
+interface Presence {
+  online: boolean | null;
+  setOnline: (next: boolean) => Promise<void>;
+}
+
+const PresenceContext = createContext<Presence>({ online: null, setOnline: async () => {} });
+
+/** Online/away, shared by the list header and Settings. */
+export const usePresence = () => useContext(PresenceContext);
+
+/**
+ * The app frame. On a phone the chat list is its own screen and a chat opens
+ * full-screen over it; from a laptop width up the list stays on the left and
+ * the chat or settings fill the rest, like a desktop messaging app.
+ */
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const [online, setOnline] = useState<boolean | null>(null);
+  const onList = path === "/admin";
+  const activeId = path.startsWith("/admin/c/") ? path.split("/")[3] ?? null : null;
+  const [online, setOnlineState] = useState<boolean | null>(null);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js", { scope: "/admin" }).catch(() => {});
     }
-    adminApi<{ online: boolean }>("/api/admin/settings").then(({ ok, data }) => ok && setOnline(data.online));
+    adminApi<{ online: boolean }>("/api/admin/settings").then(({ ok, data }) => ok && setOnlineState(data.online));
   }, []);
 
-  const toggle = async () => {
-    if (online === null) return;
-    const { ok, data } = await adminApi<{ online: boolean }>("/api/admin/settings", "PUT", { online: !online });
-    if (ok) setOnline(data.online);
-  };
-
-  const tab = (href: string, label: string) => {
-    const active = href === "/admin" ? path === "/admin" || path.startsWith("/admin/c/") : path.startsWith(href);
-    return (
-      <Link
-        href={href}
-        className={`px-1 py-3 text-[13px] ${active ? "border-b-2 border-white text-white" : "text-white/65 hover:text-white"}`}
-      >
-        {label}
-      </Link>
-    );
-  };
+  const setOnline = useCallback(async (next: boolean) => {
+    setOnlineState(next);
+    const { ok, data } = await adminApi<{ online: boolean }>("/api/admin/settings", "PUT", { online: next });
+    setOnlineState(ok ? data.online : !next);
+  }, []);
 
   return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="on-navy sticky top-0 z-10 bg-navy text-white pt-[env(safe-area-inset-top)]">
-        <div className="flex items-center gap-3 px-4 pt-3">
-          <Mark className="w-6" />
-          <span className="font-display text-[18px]">MW Chat</span>
-          <button
-            type="button"
-            onClick={toggle}
-            disabled={online === null}
-            aria-pressed={online ?? undefined}
-            className="ml-auto flex items-center gap-2 rounded-full border border-white/30 px-3 py-1.5 text-[12px]"
-          >
-            <span
-              aria-hidden
-              className={`h-2 w-2 rounded-full ${online ? "bg-[#4cc28a]" : "bg-white/40"}`}
-            />
-            {online === null ? "…" : online ? "Online" : "Away"}
-          </button>
-        </div>
-        <nav className="flex gap-5 px-4">
-          {tab("/admin", "Chats")}
-          {tab("/admin/settings", "Settings")}
-        </nav>
-      </header>
-      <main className="flex min-h-0 flex-1 flex-col">{children}</main>
-    </div>
+    <PresenceContext.Provider value={{ online, setOnline }}>
+      <div className="flex h-dvh overflow-hidden bg-paper">
+        <aside
+          className={`${onList ? "flex" : "hidden"} w-full min-w-0 flex-col bg-white lg:flex lg:w-[380px] lg:shrink-0 lg:border-r lg:border-line`}
+        >
+          <header className="on-navy bg-navy px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
+            <div className="flex h-11 items-center gap-3">
+              <Mark className="w-6" />
+              <h1 className="text-[21px] font-semibold tracking-[-0.01em]">Chats</h1>
+              <div className="ml-auto flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => online !== null && setOnline(!online)}
+                  disabled={online === null}
+                  aria-pressed={online ?? undefined}
+                  className="press flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-[13px] font-medium hover:bg-white/15"
+                >
+                  <span
+                    aria-hidden
+                    className={`h-2 w-2 rounded-full transition-colors ${online ? "bg-live" : "bg-white/40"}`}
+                  />
+                  {online === null ? "…" : online ? "Online" : "Away"}
+                </button>
+                <Link
+                  href="/admin/settings"
+                  aria-label="Settings"
+                  className={`press rounded-full p-2 hover:bg-white/10 ${path === "/admin/settings" ? "bg-white/15" : ""}`}
+                >
+                  <SettingsIcon className="h-[22px] w-[22px]" />
+                </Link>
+              </div>
+            </div>
+          </header>
+          <Inbox activeId={activeId} />
+        </aside>
+        <main className={`${onList ? "hidden lg:flex" : "flex"} min-w-0 flex-1 flex-col`}>{children}</main>
+      </div>
+    </PresenceContext.Provider>
   );
 }
