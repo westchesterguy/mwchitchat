@@ -6,6 +6,8 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { Mark } from "../Mark";
 import { SettingsIcon } from "../ui/icons";
 import { Inbox } from "./Inbox";
+import { applyTheme, getTheme } from "./prefs";
+import { unlockAudio } from "./tones";
 import { adminApi } from "./util";
 
 interface Presence {
@@ -36,6 +38,20 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     adminApi<{ online: boolean }>("/api/admin/settings").then(({ ok, data }) => ok && setOnlineState(data.online));
   }, []);
 
+  // Sounds need a first tap; Automatic theme follows the device as it changes.
+  useEffect(() => {
+    window.addEventListener("pointerdown", unlockAudio);
+    window.addEventListener("keydown", unlockAudio);
+    const scheme = window.matchMedia("(prefers-color-scheme: dark)");
+    const follow = () => getTheme() === "system" && applyTheme();
+    scheme.addEventListener("change", follow);
+    return () => {
+      window.removeEventListener("pointerdown", unlockAudio);
+      window.removeEventListener("keydown", unlockAudio);
+      scheme.removeEventListener("change", follow);
+    };
+  }, []);
+
   const setOnline = useCallback(async (next: boolean) => {
     setOnlineState(next);
     const { ok, data } = await adminApi<{ online: boolean }>("/api/admin/settings", "PUT", { online: next });
@@ -46,9 +62,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <PresenceContext.Provider value={{ online, setOnline }}>
       <div className="flex h-dvh overflow-hidden bg-paper">
         <aside
-          className={`${onList ? "flex" : "hidden"} w-full min-w-0 flex-col bg-white lg:flex lg:w-[380px] lg:shrink-0 lg:border-r lg:border-line`}
+          className={`${onList ? "flex" : "hidden"} w-full min-w-0 flex-col bg-surface lg:flex lg:w-[380px] lg:shrink-0 lg:border-r lg:border-line`}
         >
-          <header className="on-navy bg-navy px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
+          <header className="on-navy bg-chrome px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] text-white">
             <div className="flex h-11 items-center gap-3">
               <Mark className="w-6" />
               <h1 className="text-[21px] font-semibold tracking-[-0.01em]">Chats</h1>

@@ -14,6 +14,15 @@
   --color-canvas: #f3f2ee;
   --color-line: #e6e4de;
   --color-bubble: #ffffff;
+  /* Cards, lists, fields: white by day, charcoal at night. */
+  --color-surface: #ffffff;
+  /* Brand-coloured text and links. */
+  --color-accent: #002349;
+  /* App bars: Sotheby's blue by day, near-black at night. */
+  --color-chrome: #002349;
+  --color-chip: #e7e5df;
+  --color-field-off: #d6d4cd;
+  --color-skeleton: #eceae4;
   --color-ok: #23864f;
   --color-live: #2fb36b;
   --color-warn: #a35a00;
@@ -32,6 +41,42 @@ body {
 
 html {
   -webkit-tap-highlight-color: transparent;
+  color-scheme: light;
+}
+
+/* Dark mode for the admin app, chosen in Settings (per device). The
+   visitor's chat window on the sites never sets it and stays light. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --color-navy: #1b4f8c;
+  --color-navy-light: #2460a6;
+  --color-navy-tint: #18263b;
+  --color-ink: #ecebe8;
+  --color-ink-soft: #c9c8c3;
+  --color-muted: #9b9a94;
+  --color-faint: #73726c;
+  --color-paper: #111315;
+  --color-canvas: #0a0b0c;
+  --color-line: #2a2d32;
+  --color-bubble: #23272c;
+  --color-surface: #1a1d20;
+  --color-accent: #9fbde6;
+  --color-chrome: #0d0f11;
+  --color-chip: #22262b;
+  --color-field-off: #3b4047;
+  --color-skeleton: #1f2226;
+  --color-ok: #4cc28a;
+  --color-live: #34c46a;
+  --color-warn: #e3a64e;
+  --color-danger: #f07a6c;
+  --shadow-bubble: 0 1px 1px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+html[data-theme="dark"] .skeleton::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+}
+html[data-theme="dark"] header.on-navy {
+  border-bottom: 1px solid var(--color-line);
 }
 
 body {
@@ -116,7 +161,7 @@ body {
 .skeleton {
   position: relative;
   overflow: hidden;
-  background: #eceae4;
+  background: var(--color-skeleton);
   border-radius: 6px;
 }
 .skeleton::after {

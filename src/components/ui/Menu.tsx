@@ -55,7 +55,7 @@ export function Menu({
       {open && (
         <div
           role="menu"
-          className="anim-pop absolute right-0 top-full z-40 mt-1.5 min-w-[200px] origin-top-right overflow-hidden rounded-xl border border-line bg-white py-1.5 text-ink shadow-[var(--shadow-card)]"
+          className="anim-pop absolute right-0 top-full z-40 mt-1.5 min-w-[200px] origin-top-right overflow-hidden rounded-xl border border-line bg-surface py-1.5 text-ink shadow-[var(--shadow-card)]"
         >
           {items.map((item) => {
             const cls = `flex w-full items-center gap-3 px-4 py-2.5 text-left text-[14px] hover:bg-canvas ${

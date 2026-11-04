@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { listTime } from "../chat/time";
 import { Avatar } from "../ui/Avatar";
 import { ChatIcon, SearchIcon } from "../ui/icons";
+import { chime } from "./tones";
 import { adminApi, countryName, pagePath, poll, siteShort } from "./util";
 
 interface Row {
@@ -45,12 +46,23 @@ export function Inbox({ activeId }: { activeId: string | null }) {
   const [status, setStatus] = useState<"open" | "closed">("open");
   const [rows, setRows] = useState<Row[] | null>(null);
   const [query, setQuery] = useState("");
+  const active = useRef(activeId);
+  active.current = activeId;
+  const heard = useRef<number | null>(null);
 
   useEffect(() => {
     setRows(null);
+    heard.current = null;
     return poll(async () => {
       const { ok, data } = await adminApi<{ conversations: Row[] }>(`/api/admin/conversations?status=${status}`);
-      if (ok) setRows(data.conversations);
+      if (!ok) return;
+      setRows(data.conversations);
+      // A new chat or a new message in a chat you are not looking at.
+      if (status === "open") {
+        const total = data.conversations.reduce((n, r) => n + (r.id === active.current ? 0 : r.unread), 0);
+        if (heard.current !== null && total > heard.current) chime();
+        heard.current = total;
+      }
     }, 4000);
   }, [status]);
 
@@ -75,7 +87,7 @@ export function Inbox({ activeId }: { activeId: string | null }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search"
-            className="h-10 w-full rounded-xl bg-canvas pl-10 pr-3 text-[15px] outline-none placeholder:text-faint focus:bg-white focus:shadow-[0_0_0_2px_rgba(0,35,73,0.18)]"
+            className="h-10 w-full rounded-xl bg-canvas pl-10 pr-3 text-[15px] outline-none placeholder:text-faint focus:bg-surface focus:shadow-[0_0_0_2px_rgba(0,35,73,0.18)]"
           />
         </label>
         <div role="tablist" className="grid grid-cols-2 rounded-xl bg-canvas p-1">
@@ -87,7 +99,7 @@ export function Inbox({ activeId }: { activeId: string | null }) {
               aria-selected={status === s}
               onClick={() => setStatus(s)}
               className={`press flex items-center justify-center gap-1.5 rounded-[9px] py-1.5 text-[13px] font-medium ${
-                status === s ? "bg-white text-ink shadow-[0_1px_3px_rgba(0,0,0,0.1)]" : "text-muted"
+                status === s ? "bg-surface text-ink shadow-[0_1px_3px_rgba(0,0,0,0.1)]" : "text-muted"
               }`}
             >
               {s === "open" ? "Open" : "Closed"}
@@ -103,7 +115,7 @@ export function Inbox({ activeId }: { activeId: string | null }) {
         {shown === null && <Skeleton />}
         {shown?.length === 0 && (
           <div className="anim-fade flex flex-col items-center px-8 py-16 text-center">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-navy-tint text-navy">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-navy-tint text-accent">
               <ChatIcon className="h-7 w-7" />
             </span>
             <p className="mt-4 text-[15px] font-medium">
@@ -132,13 +144,13 @@ export function Inbox({ activeId }: { activeId: string | null }) {
                     active ? "bg-navy-tint" : "hover:bg-paper active:bg-canvas"
                   }`}
                 >
-                  <Avatar name={name} online={r.online} ring={active ? "#e9eef5" : "#fff"} />
+                  <Avatar name={name} online={r.online} ring={active ? "var(--color-navy-tint)" : "var(--color-surface)"} />
                   <div className="min-w-0 flex-1 border-b border-line/0">
                     <div className="flex items-baseline gap-2">
                       <span className={`truncate text-[15px] ${unread ? "font-semibold text-ink" : "font-medium text-ink"}`}>
                         {name}
                       </span>
-                      <span className={`ml-auto shrink-0 text-[12px] ${unread ? "font-semibold text-navy" : "text-faint"}`}>
+                      <span className={`ml-auto shrink-0 text-[12px] ${unread ? "font-semibold text-accent" : "text-faint"}`}>
                         {listTime(r.last_message_at)}
                       </span>
                     </div>

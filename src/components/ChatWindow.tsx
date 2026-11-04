@@ -291,7 +291,7 @@ function PrechatForm({
 
   const set = (key: string, value: string | boolean) => setAnswers((a) => ({ ...a, [key]: value }));
   const input =
-    "w-full rounded-xl border bg-white px-3.5 text-[15px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-navy/50 focus:shadow-[0_0_0_3px_rgba(0,35,73,0.08)]";
+    "w-full rounded-xl border bg-surface px-3.5 text-[15px] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-navy/50 focus:shadow-[0_0_0_3px_rgba(0,35,73,0.08)]";
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -321,7 +321,7 @@ function PrechatForm({
         </div>
       </div>
 
-      <div className="anim-rise mt-4 rounded-2xl bg-white p-4 shadow-[var(--shadow-card)]" style={{ animationDelay: "60ms" }}>
+      <div className="anim-rise mt-4 rounded-2xl bg-surface p-4 shadow-[var(--shadow-card)]" style={{ animationDelay: "60ms" }}>
         <div className="space-y-3.5">
           {config.fields.map((f) => {
             const id = `f-${f.key}`;

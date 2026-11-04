@@ -67,7 +67,7 @@ export function Avatar({
         <span
           aria-label="Online"
           className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-live"
-          style={{ boxShadow: `0 0 0 2.5px ${ring ?? "#fff"}` }}
+          style={{ boxShadow: `0 0 0 2.5px ${ring ?? "var(--color-surface)"}` }}
         />
       )}
     </span>

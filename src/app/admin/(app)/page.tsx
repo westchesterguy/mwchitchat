@@ -7,7 +7,7 @@ import { ChatIcon } from "@/components/ui/icons";
 export default function ChatsHome() {
   return (
     <div className="anim-fade flex flex-1 flex-col items-center justify-center bg-canvas px-8 text-center">
-      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white text-navy shadow-[var(--shadow-card)]">
+      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-surface text-accent shadow-[var(--shadow-card)]">
         <ChatIcon className="h-8 w-8" />
       </span>
       <p className="mt-5 text-[17px] font-semibold">Select a chat</p>

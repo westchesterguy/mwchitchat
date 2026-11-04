@@ -96,3 +96,22 @@ export function Spinner({ className = "h-4 w-4" }: { className?: string }) {
     </svg>
   );
 }
+export const SunIcon = (p: IconProps) => (
+  <Icon {...p}><circle cx="12" cy="12" r="4" /><path d="M12 3v1.5M12 19.5V21M3 12h1.5M19.5 12H21M5.6 5.6l1.1 1.1M17.3 17.3l1.1 1.1M5.6 18.4l1.1-1.1M17.3 6.7l1.1-1.1" /></Icon>
+);
+export const MoonIcon = (p: IconProps) => (
+  <Icon {...p}><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" /></Icon>
+);
+export const AutoThemeIcon = (p: IconProps) => (
+  <Icon {...p}><circle cx="12" cy="12" r="8.5" /><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor" stroke="none" /></Icon>
+);
+export const PlayIcon = (p: IconProps) => <Icon {...p}><path d="M8 5.5v13l10-6.5z" /></Icon>;
+export const DownloadIcon = (p: IconProps) => (
+  <Icon {...p}><path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14" /></Icon>
+);
+export const SpeakerIcon = (p: IconProps) => (
+  <Icon {...p}><path d="M4.5 9.5h3l4-3.5v12l-4-3.5h-3z" /><path d="M15 9a4 4 0 0 1 0 6M17.5 6.5a7.5 7.5 0 0 1 0 11" /></Icon>
+);
+export const MuteIcon = (p: IconProps) => (
+  <Icon {...p}><path d="M4.5 9.5h3l4-3.5v12l-4-3.5h-3z" /><path d="M16 9.5l5 5M21 9.5l-5 5" /></Icon>
+);

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { ThemeScript } from "@/components/admin/ThemeScript";
 import { isAdmin } from "@/lib/admin-auth";
 
 export const metadata: Metadata = {
@@ -12,5 +13,10 @@ export const metadata: Metadata = {
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   if (!(await isAdmin())) redirect("/admin/login");
-  return <AdminShell>{children}</AdminShell>;
+  return (
+    <>
+      <ThemeScript />
+      <AdminShell>{children}</AdminShell>
+    </>
+  );
 }

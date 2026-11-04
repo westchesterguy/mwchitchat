@@ -19,7 +19,7 @@ function Linked({ text, mine }: { text: string; mine: boolean }) {
             href={part}
             target="_blank"
             rel="noopener noreferrer"
-            className={`underline underline-offset-2 ${mine ? "decoration-white/60" : "text-navy decoration-navy/40"}`}
+            className={`underline underline-offset-2 ${mine ? "decoration-white/60" : "text-accent decoration-navy/40"}`}
           >
             {part}
           </a>
@@ -104,7 +104,7 @@ export function Thread({
           const newDay = !prev || dayKey(prev.at) !== dayKey(m.at);
           const divider = newDay ? (
             <div className="my-4 flex justify-center">
-              <span className="rounded-full bg-[#e7e5df] px-3 py-1 text-[11px] font-medium text-muted">
+              <span className="rounded-full bg-chip px-3 py-1 text-[11px] font-medium text-muted">
                 {dayLabel(m.at)}
               </span>
             </div>
@@ -176,7 +176,7 @@ export function Thread({
                             (m.pending ? (
                               <ClockIcon className="h-3 w-3" />
                             ) : (
-                              <CheckIcon className="h-3.5 w-3.5 text-navy/60" strokeWidth={2} />
+                              <CheckIcon className="h-3.5 w-3.5 text-accent/60" strokeWidth={2} />
                             ))}
                         </>
                       )}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Composer } from "../chat/Composer";
 import { Thread } from "../chat/Thread";
 import { ago } from "../chat/time";
@@ -20,6 +20,7 @@ import {
 } from "../ui/icons";
 import { Menu, type MenuItem } from "../ui/Menu";
 import { Sheet } from "../ui/Sheet";
+import { chime } from "./tones";
 import { adminApi, device, pagePath, place, poll, siteName } from "./util";
 
 interface Conversation {
@@ -62,6 +63,7 @@ export function ConversationView({ id }: { id: string }) {
   const [sheet, setSheet] = useState(false);
   const [pane, setPane] = useState(true);
   const { messages, lastId, merge, optimistic, settle, remove } = useMessages();
+  const loaded = useRef(false);
 
   useEffect(
     () =>
@@ -73,6 +75,9 @@ export function ConversationView({ id }: { id: string }) {
         }>(`/api/admin/conversations/${id}?after=${lastId.current}`);
         if (status === 404) setMissing(true);
         if (!ok) return;
+        const fromVisitor = data.messages.some((m) => m.sender === "visitor" && m.id > lastId.current);
+        if (loaded.current && fromVisitor) chime();
+        loaded.current = true;
         setConversation(data.conversation);
         setVisitor(data.visitor);
         merge(data.messages);
@@ -124,7 +129,7 @@ export function ConversationView({ id }: { id: string }) {
   return (
     <div className="anim-screen flex min-h-0 min-w-0 flex-1">
       <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas">
-        <header className="on-navy flex items-center gap-2 bg-navy px-2 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-white sm:px-3">
+        <header className="on-navy flex items-center gap-2 bg-chrome px-2 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-white sm:px-3">
           <Link href="/admin" aria-label="Back to chats" className="press rounded-full p-2 hover:bg-white/10 lg:hidden">
             <BackIcon className="h-6 w-6" />
           </Link>
@@ -134,7 +139,7 @@ export function ConversationView({ id }: { id: string }) {
             className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-1 text-left lg:pl-2"
           >
             {visitor ? (
-              <Avatar name={name} online={visitor.online} ring="#002349" />
+              <Avatar name={name} online={visitor.online} ring="var(--color-chrome)" />
             ) : (
               <span className="skeleton h-11 w-11 !rounded-full opacity-30" />
             )}
@@ -225,7 +230,7 @@ function Row({ icon, label, children }: { icon: React.ReactNode; label: string; 
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl bg-white px-4 py-2 shadow-[var(--shadow-bubble)]">
+    <section className="rounded-2xl bg-surface px-4 py-2 shadow-[var(--shadow-bubble)]">
       <h3 className="pb-1 pt-2 text-[12px] font-semibold uppercase tracking-[0.06em] text-muted">{title}</h3>
       <dl className="divide-y divide-line/70">{children}</dl>
     </section>
@@ -235,7 +240,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function Details({ conversation: c, visitor: v }: { conversation: Conversation; visitor: Visitor }) {
   const link = (url: string | null, title: string | null) =>
     url ? (
-      <a href={url} target="_blank" rel="noopener noreferrer" className="text-navy underline decoration-navy/30 underline-offset-2">
+      <a href={url} target="_blank" rel="noopener noreferrer" className="text-accent underline decoration-navy/30 underline-offset-2">
         {title || pagePath(url)}
       </a>
     ) : (
@@ -247,7 +252,7 @@ function Details({ conversation: c, visitor: v }: { conversation: Conversation; 
   return (
     <div className="space-y-3 px-4 pb-6 pt-2">
       <div className="flex flex-col items-center pb-2 pt-1 text-center">
-        <Avatar name={name} size="lg" online={v.online} ring="#fafaf7" />
+        <Avatar name={name} size="lg" online={v.online} ring="var(--color-paper)" />
         <p className="mt-2 text-[17px] font-semibold">{name}</p>
         <p className={`text-[13px] ${v.online ? "text-ok" : "text-muted"}`}>
           {v.online ? "Online now" : `Last seen ${ago(v.last_seen_at)}`}
@@ -255,12 +260,12 @@ function Details({ conversation: c, visitor: v }: { conversation: Conversation; 
         {(v.email || v.phone) && (
           <div className="mt-3 flex gap-2">
             {v.email && (
-              <a href={`mailto:${v.email}`} className="press flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-[13px] font-medium text-navy shadow-[var(--shadow-bubble)]">
+              <a href={`mailto:${v.email}`} className="press flex items-center gap-1.5 rounded-full bg-surface px-3.5 py-2 text-[13px] font-medium text-accent shadow-[var(--shadow-bubble)]">
                 <MailIcon className="h-4 w-4" /> Email
               </a>
             )}
             {v.phone && (
-              <a href={`tel:${v.phone.replace(/[^+\d]/g, "")}`} className="press flex items-center gap-1.5 rounded-full bg-white px-3.5 py-2 text-[13px] font-medium text-navy shadow-[var(--shadow-bubble)]">
+              <a href={`tel:${v.phone.replace(/[^+\d]/g, "")}`} className="press flex items-center gap-1.5 rounded-full bg-surface px-3.5 py-2 text-[13px] font-medium text-accent shadow-[var(--shadow-bubble)]">
                 <PhoneIcon className="h-4 w-4" /> Call
               </a>
             )}
@@ -282,9 +287,9 @@ function Details({ conversation: c, visitor: v }: { conversation: Conversation; 
               <dt className="text-[12px] text-muted">{a.label.length > 70 ? `${a.label.slice(0, 67)}…` : a.label}</dt>
               <dd className="mt-0.5 break-words text-[14px]">
                 {a.key === "email" ? (
-                  <a href={`mailto:${a.value}`} className="text-navy underline decoration-navy/30 underline-offset-2">{a.value}</a>
+                  <a href={`mailto:${a.value}`} className="text-accent underline decoration-navy/30 underline-offset-2">{a.value}</a>
                 ) : a.key === "phone" ? (
-                  <a href={`tel:${a.value.replace(/[^+\d]/g, "")}`} className="text-navy underline decoration-navy/30 underline-offset-2">{a.value}</a>
+                  <a href={`tel:${a.value.replace(/[^+\d]/g, "")}`} className="text-accent underline decoration-navy/30 underline-offset-2">{a.value}</a>
                 ) : (
                   a.value
                 )}

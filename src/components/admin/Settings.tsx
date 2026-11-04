@@ -6,17 +6,26 @@ import { sites } from "@/lib/sites";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  AutoThemeIcon,
   BackIcon,
   BellIcon,
   CheckIcon,
   CopyIcon,
+  DownloadIcon,
   LogoutIcon,
+  MoonIcon,
+  MuteIcon,
+  PlayIcon,
   PlusIcon,
+  SpeakerIcon,
   Spinner,
+  SunIcon,
   TrashIcon,
 } from "../ui/icons";
 import { Switch } from "../ui/Switch";
 import { usePresence } from "./AdminShell";
+import { getTheme, getTone, getVolume, setTheme, setTone, setVolume, type Theme } from "./prefs";
+import { playTone, SILENT, toneFile, TONES } from "./tones";
 import { adminApi } from "./util";
 
 type FieldType = "text" | "email" | "tel" | "textarea" | "select" | "checkbox";
@@ -39,19 +48,19 @@ const TYPES: { value: FieldType; label: string }[] = [
   { value: "checkbox", label: "Checkbox" },
 ];
 
-const card = "rounded-2xl bg-white p-4 shadow-[var(--shadow-bubble)] sm:p-5";
+const card = "rounded-2xl bg-surface p-4 shadow-[var(--shadow-bubble)] sm:p-5";
 const h2 = "text-[17px] font-semibold";
 const secondary =
-  "press inline-flex items-center gap-2 rounded-full border border-line bg-white px-4 py-2 text-[14px] font-medium text-ink-soft hover:border-ink-soft/40 disabled:opacity-50";
+  "press inline-flex items-center gap-2 rounded-full border border-line bg-surface px-4 py-2 text-[14px] font-medium text-ink-soft hover:border-ink-soft/40 disabled:opacity-50";
 const primary =
   "press inline-flex items-center justify-center gap-2 rounded-full bg-navy px-5 py-2.5 text-[14px] font-medium text-white shadow-[0_2px_8px_rgba(0,35,73,0.25)] hover:bg-navy-light disabled:opacity-50 disabled:shadow-none";
 const input =
-  "w-full rounded-xl border border-line bg-white px-3 py-2.5 text-[15px] outline-none transition-[border-color,box-shadow] focus:border-navy/50 focus:shadow-[0_0_0_3px_rgba(0,35,73,0.08)]";
+  "w-full rounded-xl border border-line bg-surface px-3 py-2.5 text-[15px] outline-none transition-[border-color,box-shadow] focus:border-navy/50 focus:shadow-[0_0_0_3px_rgba(0,35,73,0.08)]";
 
 export function Settings({ appUrl }: { appUrl: string }) {
   return (
     <div className="anim-screen flex min-h-0 flex-1 flex-col bg-canvas">
-      <header className="on-navy flex items-center gap-2 bg-navy px-2 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-white sm:px-4">
+      <header className="on-navy flex items-center gap-2 bg-chrome px-2 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-white sm:px-4">
         <Link href="/admin" aria-label="Back to chats" className="press rounded-full p-2 hover:bg-white/10 lg:hidden">
           <BackIcon className="h-6 w-6" />
         </Link>
@@ -60,7 +69,9 @@ export function Settings({ appUrl }: { appUrl: string }) {
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto w-full max-w-2xl space-y-4 px-4 py-5 pb-28">
           <Availability />
+          <Appearance />
           <Notifications />
+          <Sounds />
           <Questions />
           <Install appUrl={appUrl} />
           <SignOut />
@@ -89,6 +100,157 @@ function Availability() {
           onChange={(next) => setOnline(next)}
           label="Available for chat"
         />
+      </div>
+    </section>
+  );
+}
+
+function Appearance() {
+  const [theme, setThemeState] = useState<Theme>("light");
+  useEffect(() => setThemeState(getTheme()), []);
+  const choose = (t: Theme) => {
+    setTheme(t);
+    setThemeState(t);
+  };
+  const options: { value: Theme; label: string; icon: React.ReactNode }[] = [
+    { value: "light", label: "Light", icon: <SunIcon /> },
+    { value: "dark", label: "Dark", icon: <MoonIcon /> },
+    { value: "system", label: "Automatic", icon: <AutoThemeIcon /> },
+  ];
+  return (
+    <section className={card}>
+      <h2 className={h2}>Appearance</h2>
+      <p className="mt-1 text-[14px] text-muted">
+        Automatic follows your phone or computer. This is saved on this device only.
+      </p>
+      <div role="radiogroup" aria-label="Appearance" className="mt-3 grid grid-cols-3 gap-2">
+        {options.map((o) => {
+          const on = theme === o.value;
+          return (
+            <button
+              key={o.value}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => choose(o.value)}
+              className={`press flex flex-col items-center gap-1.5 rounded-xl border py-3 text-[13px] font-medium ${
+                on ? "border-navy bg-navy-tint text-accent" : "border-line text-ink-soft hover:border-ink-soft/40"
+              }`}
+            >
+              {o.icon}
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function Sounds() {
+  const [tone, setToneState] = useState("bell");
+  const [volume, setVolumeState] = useState(0.7);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setToneState(getTone());
+    setVolumeState(getVolume());
+  }, []);
+
+  const choose = (id: string) => {
+    setTone(id);
+    setToneState(id);
+    if (id !== SILENT) playTone(id, volume);
+  };
+
+  const current = TONES.find((t) => t.id === tone);
+
+  const save = async () => {
+    if (!current) return;
+    setSaving(true);
+    const blob = await toneFile(current.id);
+    setSaving(false);
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `MW Chat - ${current.name}.wav`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+
+  return (
+    <section className={card}>
+      <h2 className={h2}>Sounds</h2>
+      <p className="mt-1 text-[14px] text-muted">
+        Plays when a chat starts or a visitor writes while the app is open. Tap a tone to hear it.
+      </p>
+
+      <div role="radiogroup" aria-label="Notification tone" className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {[{ id: SILENT, name: "Silent" }, ...TONES].map((t) => {
+          const on = tone === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => choose(t.id)}
+              className={`press flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-[14px] font-medium ${
+                on ? "border-navy bg-navy-tint text-accent" : "border-line text-ink-soft hover:border-ink-soft/40"
+              }`}
+            >
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                  on ? "bg-navy text-white" : "bg-canvas text-muted"
+                }`}
+              >
+                {t.id === SILENT ? (
+                  <MuteIcon className="h-4 w-4" />
+                ) : on ? (
+                  <CheckIcon className="h-4 w-4" strokeWidth={2.2} />
+                ) : (
+                  <PlayIcon className="h-3.5 w-3.5" />
+                )}
+              </span>
+              <span className="truncate">{t.name}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <label className="mt-4 flex items-center gap-3">
+        <SpeakerIcon className="h-5 w-5 shrink-0 text-muted" />
+        <span className="sr-only">Volume</span>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.05}
+          value={volume}
+          disabled={tone === SILENT}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setVolumeState(v);
+            setVolume(v);
+          }}
+          onPointerUp={() => tone !== SILENT && playTone(tone, volume)}
+          onKeyUp={() => tone !== SILENT && playTone(tone, volume)}
+          className="h-2 flex-1 cursor-pointer accent-[var(--color-navy)] disabled:opacity-40"
+        />
+        <span className="w-10 text-right text-[13px] tabular-nums text-muted">{Math.round(volume * 100)}%</span>
+      </label>
+
+      <div className="mt-4 rounded-xl bg-canvas p-3.5 text-[13px] leading-relaxed text-muted">
+        When the app is closed, your phone plays the sound chosen for MW Chat in its own notification settings.
+        To use this tone there too, save it, then choose it under Settings, Apps, MW Chat, Notifications, Sound.
+        {current && (
+          <button type="button" onClick={save} disabled={saving} className={`${secondary} mt-3 w-full justify-center sm:w-auto`}>
+            {saving ? <Spinner /> : <DownloadIcon className="h-4 w-4" />} Save &ldquo;{current.name}&rdquo; to this device
+          </button>
+        )}
       </div>
     </section>
   );
@@ -169,7 +331,7 @@ function Notifications() {
   return (
     <section className={card}>
       <div className="flex items-start gap-4">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-tint text-navy">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-tint text-accent">
           <BellIcon />
         </span>
         <div className="flex-1">
@@ -301,13 +463,13 @@ function Questions() {
               <span className="font-semibold uppercase tracking-[0.06em]">Question {i + 1}</span>
               {f.key && <span className="min-w-0 truncate">· {f.key}</span>}
               <span className="ml-auto flex shrink-0">
-                <button type="button" aria-label="Move up" onClick={() => move(i, -1)} disabled={i === 0} className="press rounded-full p-1.5 hover:bg-white disabled:opacity-30">
+                <button type="button" aria-label="Move up" onClick={() => move(i, -1)} disabled={i === 0} className="press rounded-full p-1.5 hover:bg-surface disabled:opacity-30">
                   <ArrowUpIcon className="h-4 w-4" />
                 </button>
-                <button type="button" aria-label="Move down" onClick={() => move(i, 1)} disabled={i === fields.length - 1} className="press rounded-full p-1.5 hover:bg-white disabled:opacity-30">
+                <button type="button" aria-label="Move down" onClick={() => move(i, 1)} disabled={i === fields.length - 1} className="press rounded-full p-1.5 hover:bg-surface disabled:opacity-30">
                   <ArrowDownIcon className="h-4 w-4" />
                 </button>
-                <button type="button" aria-label="Remove question" onClick={() => setFields((fs) => fs!.filter((_, j) => j !== i))} className="press rounded-full p-1.5 text-danger hover:bg-white">
+                <button type="button" aria-label="Remove question" onClick={() => setFields((fs) => fs!.filter((_, j) => j !== i))} className="press rounded-full p-1.5 text-danger hover:bg-surface">
                   <TrashIcon className="h-4 w-4" />
                 </button>
               </span>
@@ -328,7 +490,7 @@ function Questions() {
             <div className="mt-2.5 flex flex-wrap items-center gap-x-5 gap-y-2.5">
               <label className="flex items-center gap-2 text-[13px] text-ink-soft">
                 Answer
-                <select value={f.type} onChange={(e) => update(i, { type: e.target.value as FieldType })} className="rounded-lg border border-line bg-white px-2 py-1.5 text-[14px] outline-none focus:border-navy/50">
+                <select value={f.type} onChange={(e) => update(i, { type: e.target.value as FieldType })} className="rounded-lg border border-line bg-surface px-2 py-1.5 text-[14px] outline-none focus:border-navy/50">
                   {TYPES.map((t) => (
                     <option key={t.value} value={t.value}>
                       {t.label}
@@ -369,7 +531,7 @@ function Questions() {
                     aria-pressed={on}
                     onClick={() => update(i, { sites: on ? f.sites.filter((x) => x !== s.id) : [...f.sites, s.id] })}
                     className={`press inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[12px] font-medium ${
-                      on ? "border-navy bg-navy text-white" : "border-line bg-white text-muted"
+                      on ? "border-navy bg-navy text-white" : "border-line bg-surface text-muted"
                     }`}
                   >
                     {on && <CheckIcon className="h-3.5 w-3.5" strokeWidth={2.2} />}
@@ -436,7 +598,7 @@ function Install({ appUrl }: { appUrl: string }) {
                   setCopied(s.id);
                   setTimeout(() => setCopied(null), 1600);
                 }}
-                className="press inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium text-navy hover:bg-navy-tint"
+                className="press inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium text-accent hover:bg-navy-tint"
               >
                 {copied === s.id ? <CheckIcon className="h-3.5 w-3.5" strokeWidth={2.2} /> : <CopyIcon className="h-3.5 w-3.5" />}
                 {copied === s.id ? "Copied" : "Copy"}

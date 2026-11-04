@@ -12,6 +12,7 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
   title: "MW Chat",
   robots: { index: false, follow: false },
+  icons: { icon: "/icons/icon-192.png" },
 };
 
 export const viewport: Viewport = {
@@ -25,7 +26,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
+    <html lang="en" className={`${inter.variable} ${playfair.variable}`} suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );

@@ -76,14 +76,14 @@ export function Composer({
               submit();
             }
           }}
-          className="max-h-[148px] min-h-[44px] flex-1 resize-none rounded-[22px] border border-line bg-white px-4 py-[11px] text-[15px] leading-[1.4] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-navy/50 focus:shadow-[0_0_0_3px_rgba(0,35,73,0.08)]"
+          className="max-h-[148px] min-h-[44px] flex-1 resize-none rounded-[22px] border border-line bg-surface px-4 py-[11px] text-[15px] leading-[1.4] text-ink outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-navy/50 focus:shadow-[0_0_0_3px_rgba(0,35,73,0.08)]"
         />
         <button
           type="submit"
           aria-label="Send"
           disabled={!ready}
           className={`press flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
-            ready ? "bg-navy text-white shadow-[0_2px_8px_rgba(0,35,73,0.3)]" : "bg-[#dcdad3] text-white"
+            ready ? "bg-navy text-white shadow-[0_2px_8px_rgba(0,35,73,0.3)]" : "bg-field-off text-white"
           }`}
         >
           <SendIcon className="h-5 w-5" strokeWidth={2} />

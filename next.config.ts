@@ -9,6 +9,10 @@ const frameAncestors = (
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Browsers ask for /favicon.ico on their own; answer with the app icon.
+  async rewrites() {
+    return [{ source: "/favicon.ico", destination: "/icons/icon-192.png" }];
+  },
   async headers() {
     return [
       {
