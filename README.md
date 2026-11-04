@@ -1,0 +1,70 @@
+# MW Chat
+
+Live chat for westchesterguy.com and westchesterhorseproperties.com, answered by
+Michael from his own app. It replaces Tawk.to.
+
+- **Visitors** get a chat button on either site. They answer a short pre-chat
+  questionnaire, then message Michael live.
+- **Michael** uses the admin app at `/admin`. It can be installed on a phone
+  from the browser and wrapped as an Android APK. It shows every chat with the
+  site it started on, the page the visitor is on right now, their country, city
+  and IP address, and their answers. He edits the questionnaire in Settings.
+- **When Michael is away** (the switch at the top of the app), new chats are
+  also emailed to him, and the visitor is told he will follow up.
+- **Notifications** reach his phone when a chat starts or a visitor writes,
+  through Web Push. No Firebase project is needed.
+
+## Setup on Vercel
+
+1. **Database.** In the Vercel project: Storage, Create Database, Supabase,
+   connect to this project. That adds `POSTGRES_URL` and the related variables.
+   The tables are created by the next build.
+2. **Admin password.** Settings, Environment Variables: add `ADMIN_PASSWORD`
+   (Production and Preview), marked Sensitive. Changing it signs every device
+   out.
+3. **Email when away (optional).** Add `RESEND_API_KEY`, the same key the sites
+   use. Without it, away chats still reach the app, they are just not emailed.
+4. Redeploy.
+
+Everything else is generated on first use and kept in the database: the key
+that signs admin sign-ins and the keys that identify the app for push
+notifications.
+
+| Variable | Needed | Purpose |
+| --- | --- | --- |
+| `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING` | yes | Added by the Supabase integration |
+| `ADMIN_PASSWORD` | yes | The admin app's password |
+| `RESEND_API_KEY` | for away email | Same key as the sites |
+| `LEAD_TO`, `LEAD_FROM` | no | Override the inbox and sender for away email |
+| `APP_URL` | no | This app's public address, if it differs from the request's |
+| `ALLOWED_ORIGINS`, `FRAME_ANCESTORS` | no | Override which sites may embed the chat |
+
+## Adding it to a site
+
+```html
+<script src="https://CHAT-APP-ADDRESS/widget.js" data-site="westchesterguy" async></script>
+```
+
+`data-site` is `westchesterguy` or `horse`. Add `data-launcher="false"` to hide
+the round button and open the chat from the site's own button with
+`window.MWChat.open()`.
+
+## Phone app
+
+Open `/admin` in Chrome on the phone, sign in, and choose Install app (or Add to
+Home screen). Then Settings, Notifications, Turn on for this device.
+
+For an APK, wrap `/admin` as a Trusted Web Activity (for example with
+PWABuilder or Bubblewrap). The app needs a stable address first, ideally a
+custom domain such as chat.westchesterguy.com.
+
+## Development
+
+```
+npm ci
+POSTGRES_URL=postgres://... ADMIN_PASSWORD=... npm run build   # also applies migrations
+npm start
+```
+
+Schema changes go in a new numbered file in `db/migrations/`. Never edit one
+that has been applied.
