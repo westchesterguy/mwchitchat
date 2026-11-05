@@ -1,7 +1,7 @@
 # Android app
 
-The admin app wrapped as an Android app (a Trusted Web Activity): a thin
-shell that opens https://chat.westchesterguy.com/admin full-screen through
+The chat app wrapped as an Android app (a Trusted Web Activity): a thin
+shell that opens https://chat.westchesterguy.com/chatapp full-screen through
 Chrome. Changes to the web app reach the installed app without a new APK.
 
 - `twa-manifest.json`: the app's settings for Bubblewrap.

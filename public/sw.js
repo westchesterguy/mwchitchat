@@ -1,5 +1,5 @@
 /*
- * Service worker for the admin app (scope /admin): shows Michael's
+ * Service worker for the chat app (scope /chatapp): shows Michael's
  * notifications and opens the right chat when one is tapped.
  */
 self.addEventListener("install", () => self.skipWaiting());
@@ -19,19 +19,20 @@ self.addEventListener("push", (event) => {
       renotify: Boolean(data.tag),
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
-      data: { url: data.url || "/admin" },
+      data: { url: data.url || "/chatapp" },
     }),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = new URL(event.notification.data?.url || "/admin", self.location.origin).href;
+  const target = new URL(event.notification.data?.url || "/chatapp", self.location.origin).href;
   event.waitUntil(
     (async () => {
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const client of windows) {
-        if (new URL(client.url).pathname.startsWith("/admin")) {
+        const path = new URL(client.url).pathname;
+        if (path.startsWith("/chatapp") || path.startsWith("/admin")) {
           await client.focus();
           if ("navigate" in client) await client.navigate(target);
           return;

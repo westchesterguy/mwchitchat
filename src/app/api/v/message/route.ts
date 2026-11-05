@@ -65,7 +65,7 @@ export async function POST(req: Request) {
       notifyAgent({
         title: `${c.name ?? "Visitor"} (${domain})`,
         body: text || `Sent a ${attachmentLabel(file?.type).toLowerCase()}`,
-        url: `/admin/c/${visitor.conversationId}`,
+        url: `/chatapp/c/${visitor.conversationId}`,
         tag: visitor.conversationId!,
       }),
     );

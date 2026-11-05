@@ -2,7 +2,9 @@
 
 Self-hosted live chat for Michael Winter's two sites (westchesterguy.com, the
 hub, and westchesterhorseproperties.com). Visitors chat through `public/widget.js`
-and the `/embed` page; Michael answers in the admin app under `/admin`. See
+and the `/embed` page; Michael answers in the chat app under `/chatapp`
+(formerly `/admin`, which redirects; code folders and `/api/admin` keep the
+old name). See
 README.md for setup.
 
 ## Rules
@@ -33,7 +35,7 @@ Postgres.js v4 (Supabase, pooled, `prepare: false`) · Web Push · Resend.
 - `src/components/ChatWindow.tsx`: the visitor's chat window
 - `src/components/chat/`: the message thread, reply bar and message state both sides share
 - `src/components/ui/`: icons, avatar, switch, bottom sheet, menu
-- `src/components/admin/`: the admin app
+- `src/app/chatapp/` and `src/components/admin/`: the chat app
 - `src/app/developer/` and `src/components/developer/`: the developer page,
   web only, its own sign-in (`src/lib/dev-auth.ts`), its API under
   `/developer/api`. Chat behaviour it controls lives in `src/lib/chat-settings.ts`.

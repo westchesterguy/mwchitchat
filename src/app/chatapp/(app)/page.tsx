@@ -1,7 +1,7 @@
 import { ChatIcon } from "@/components/ui/icons";
 
 /**
- * /admin. On a phone the chat list (in the shell) is the whole screen; on a
+ * /chatapp. On a phone the chat list (in the shell) is the whole screen; on a
  * wide screen the list sits on the left and this fills the space beside it.
  */
 export default function ChatsHome() {

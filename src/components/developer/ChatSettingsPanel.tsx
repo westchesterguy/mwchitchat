@@ -19,7 +19,7 @@ const LINES: { key: keyof Settings["greeting"]["lines"]; label: string; hint: st
   { key: "general", label: "Most pages", hint: "On westchesterguy.com pages other than a town page." },
   { key: "town", label: "Town pages", hint: "{town} becomes the town's name, as on /communities/bedford." },
   { key: "horse", label: "Horse site", hint: "Every page on westchesterhorseproperties.com." },
-  { key: "away", label: "While you're away", hint: "On both sites when you're set to Away in the admin app." },
+  { key: "away", label: "While you're away", hint: "On both sites when you're set to Away in the chat app." },
 ];
 
 function Row({ title, note, children }: { title: string; note?: React.ReactNode; children: React.ReactNode }) {

@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   await notifyAgent({
     title: "Test notification",
     body: "Notifications are working on this device.",
-    url: "/admin",
+    url: "/chatapp",
     tag: "test",
   });
   return Response.json({ ok: true });

@@ -5,7 +5,8 @@ Michael from his own app. It replaces Tawk.to.
 
 - **Visitors** get a chat button on either site. They answer a short pre-chat
   questionnaire, then message Michael live.
-- **Michael** uses the admin app at `/admin`. It can be installed on a phone
+- **Michael** uses the chat app at `/chatapp` (it was `/admin`; old links
+  redirect). It can be installed on a phone
   from the browser and wrapped as an Android APK. It shows every chat with the
   site it started on, the page the visitor is on right now, their country, city
   and IP address, and their answers. He edits the questionnaire in Settings.
@@ -36,7 +37,7 @@ Michael from his own app. It replaces Tawk.to.
 linked from it, and says so if opened inside the installed app). Its own
 sign-in: `DEVELOPER_PASSWORD`, or `ADMIN_PASSWORD` until that is set, with a
 12-hour cookie sent only to `/developer`. Signing in here does not sign in to
-the admin app, nor the other way round.
+the chat app, nor the other way round.
 
 - **Leads:** every chat as a lead, searchable and filterable, with CSV export.
 - **Activity:** chats per day by site, start pages, places, time of day,
@@ -70,7 +71,7 @@ notifications.
 | Variable | Needed | Purpose |
 | --- | --- | --- |
 | `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING` | yes | Added by the Supabase integration |
-| `ADMIN_PASSWORD` | yes | The admin app's password |
+| `ADMIN_PASSWORD` | yes | The chat app's password |
 | `DEVELOPER_PASSWORD` | no | A separate password for `/developer` |
 | `RESEND_API_KEY` | for lead email | Same key as the sites |
 | `LEAD_FROM` | no | Sender for lead email; its domain must be verified in Resend |

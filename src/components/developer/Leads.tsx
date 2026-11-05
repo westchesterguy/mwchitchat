@@ -262,7 +262,7 @@ export function Leads() {
                               </dd>
                               <dd>
                                 <a
-                                  href={`/admin/c/${l.id}`}
+                                  href={`/chatapp/c/${l.id}`}
                                   target="_blank"
                                   rel="noopener"
                                   className="inline-flex items-center gap-1.5 font-medium text-accent hover:underline"

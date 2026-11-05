@@ -137,7 +137,7 @@ export function Health() {
             level={!data.push.keys ? "bad" : data.push.devices === 0 ? "warn" : "ok"}
             title="Notifications"
             value={data.push.devices === 1 ? "1 device" : `${data.push.devices} devices`}
-            note={data.push.devices === 0 ? "Turn on in the admin app's Settings" : "Signed up for alerts"}
+            note={data.push.devices === 0 ? "Turn on in the chat app's Settings" : "Signed up for alerts"}
           />
         )}
         {data.errors && (
@@ -152,7 +152,7 @@ export function Health() {
           level="ok"
           title="Availability"
           value={data.online ? "Online" : "Away"}
-          note="Set in the admin app"
+          note="Set in the chat app"
         />
       </div>
 
@@ -237,7 +237,7 @@ export function Health() {
                 {e.recent.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-5 py-8 text-center text-muted">
-                      No emails yet. Use Send a test email in the admin app&rsquo;s Settings.
+                      No emails yet. Use Send a test email in the chat app&rsquo;s Settings.
                     </td>
                   </tr>
                 )}

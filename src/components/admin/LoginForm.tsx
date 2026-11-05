@@ -18,7 +18,7 @@ export function LoginForm() {
       body: JSON.stringify({ password }),
     }).catch(() => null);
     if (res?.ok) {
-      window.location.href = "/admin";
+      window.location.href = "/chatapp";
       return;
     }
     setBusy(false);

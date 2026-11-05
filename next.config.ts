@@ -16,6 +16,14 @@ const nextConfig: NextConfig = {
     BUILD_MESSAGE: (process.env.VERCEL_GIT_COMMIT_MESSAGE ?? "").split("\n")[0].slice(0, 160),
     BUILD_BRANCH: process.env.VERCEL_GIT_COMMIT_REF ?? "",
   },
+  // The chat app moved from /admin to /chatapp. Links in lead emails and
+  // notifications already sent, and the installed Android app, still say /admin.
+  async redirects() {
+    return [
+      { source: "/admin", destination: "/chatapp", permanent: true },
+      { source: "/admin/:path*", destination: "/chatapp/:path*", permanent: true },
+    ];
+  },
   // Browsers ask for /favicon.ico on their own; answer with the app icon.
   async rewrites() {
     return [{ source: "/favicon.ico", destination: "/icons/icon-192.png" }];

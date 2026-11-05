@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Login() {
-  if (await isAdmin()) redirect("/admin");
+  if (await isAdmin()) redirect("/chatapp");
   return (
     <>
       <ThemeScript />

@@ -12,7 +12,7 @@
   "navigationDividerColorDark": "#002349",
   "backgroundColor": "#FAFAF7",
   "enableNotifications": true,
-  "startUrl": "/admin",
+  "startUrl": "/chatapp",
   "iconUrl": "https://chat.westchesterguy.com/icons/icon-512.png",
   "maskableIconUrl": "https://chat.westchesterguy.com/icons/maskable-512.png",
   "splashScreenFadeOutDuration": 300,

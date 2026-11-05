@@ -21,7 +21,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 /**
  * The developer page: leads, activity, health, the chat's behaviour and
- * data tools, for a web browser. Kept apart from the admin app at /admin.
+ * data tools, for a web browser. Kept apart from the chat app at /chatapp.
  */
 export function DevApp({ initialTab }: { initialTab: Tab }) {
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -51,12 +51,12 @@ export function DevApp({ initialTab }: { initialTab: Tab }) {
           </div>
           <div className="ml-auto flex items-center gap-1">
             <a
-              href="/admin"
+              href="/chatapp"
               target="_blank"
               rel="noopener"
               className="press hidden items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-medium text-white/85 hover:bg-white/10 sm:inline-flex"
             >
-              Admin app <ExternalIcon className="h-4 w-4" />
+              Chat app <ExternalIcon className="h-4 w-4" />
             </a>
             <button
               type="button"

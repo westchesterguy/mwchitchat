@@ -72,7 +72,7 @@ export async function POST(req: Request) {
 
   const online = await getSetting<boolean>("agent_online", true);
   const name = answerOf(answers, "name") ?? "A visitor";
-  const link = adminLink(req, `/admin/c/${conversationId}`);
+  const link = adminLink(req, `/chatapp/c/${conversationId}`);
 
   if (isNew && !online) {
     await addMessage(conversationId, "system", (await getChatSettings()).awayMessage);
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
     notifyAgent({
       title: isNew ? `New chat: ${name}` : `${name} (${site.domain})`,
       body: isNew ? `${site.domain}: ${message}` : message,
-      url: `/admin/c/${conversationId}`,
+      url: `/chatapp/c/${conversationId}`,
       tag: conversationId!,
     }),
   );

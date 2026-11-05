@@ -106,7 +106,7 @@ export function ConversationView({ id }: { id: string }) {
   const send = async (text: string, file: Outgoing | null = null) => {
     const temp = optimistic("agent", text, file);
     const { ok, status, data } = await postMessage<{ message?: ChatMessage }>(`/api/admin/conversations/${id}/messages`, text, file);
-    if (status === 401) window.location.href = "/admin/login";
+    if (status === 401) window.location.href = "/chatapp/login";
     settle(temp, ok && data.message ? data.message : null);
     if (ok) setConversation((c) => (c ? { ...c, status: "open" } : c));
   };
@@ -127,7 +127,7 @@ export function ConversationView({ id }: { id: string }) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center bg-canvas px-8 text-center">
         <p className="text-[15px] font-medium">This chat no longer exists.</p>
-        <Link href="/admin" className="press mt-4 rounded-full bg-navy px-5 py-2.5 text-[14px] font-medium text-white">
+        <Link href="/chatapp" className="press mt-4 rounded-full bg-navy px-5 py-2.5 text-[14px] font-medium text-white">
           Back to chats
         </Link>
       </div>
@@ -147,7 +147,7 @@ export function ConversationView({ id }: { id: string }) {
     <div className="anim-screen flex min-h-0 min-w-0 flex-1">
       <section className="flex min-h-0 min-w-0 flex-1 flex-col bg-canvas">
         <header className="on-navy flex items-center gap-2 bg-chrome px-2 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-white sm:px-3">
-          <Link href="/admin" aria-label="Back to chats" className="press rounded-full p-2 hover:bg-white/10 lg:hidden">
+          <Link href="/chatapp" aria-label="Back to chats" className="press rounded-full p-2 hover:bg-white/10 lg:hidden">
             <BackIcon className="h-6 w-6" />
           </Link>
           <div className="flex min-w-0 flex-1 items-center gap-3 px-1 py-1 lg:pl-2">

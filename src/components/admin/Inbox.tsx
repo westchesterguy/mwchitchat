@@ -138,7 +138,7 @@ export function Inbox({ activeId }: { activeId: string | null }) {
             return (
               <li key={r.id}>
                 <Link
-                  href={`/admin/c/${r.id}`}
+                  href={`/chatapp/c/${r.id}`}
                   aria-current={active ? "page" : undefined}
                   className={`flex gap-3 px-4 py-3 transition-colors ${
                     active ? "bg-navy-tint" : "hover:bg-paper active:bg-canvas"

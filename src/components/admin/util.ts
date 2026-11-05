@@ -15,7 +15,7 @@ export async function adminApi<T = Record<string, unknown>>(
     cache: "no-store",
   });
   if (res.status === 401) {
-    window.location.href = "/admin/login";
+    window.location.href = "/chatapp/login";
   }
   const data = (await res.json().catch(() => ({}))) as T;
   return { ok: res.ok, status: res.status, data };

@@ -63,7 +63,7 @@ export function Settings({ appUrl }: { appUrl: string }) {
   return (
     <div className="anim-screen flex min-h-0 flex-1 flex-col bg-canvas">
       <header className="on-navy flex items-center gap-2 bg-chrome px-2 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] text-white sm:px-4">
-        <Link href="/admin" aria-label="Back to chats" className="press rounded-full p-2 hover:bg-white/10 lg:hidden">
+        <Link href="/chatapp" aria-label="Back to chats" className="press rounded-full p-2 hover:bg-white/10 lg:hidden">
           <BackIcon className="h-6 w-6" />
         </Link>
         <h1 className="flex h-11 items-center px-1 text-[19px] font-semibold">Settings</h1>
@@ -285,7 +285,7 @@ function Notifications() {
         setState("blocked");
         return;
       }
-      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/admin" });
+      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/chatapp" });
       setState((await reg.pushManager.getSubscription()) ? "on" : "off");
     })().catch(() => setState("unsupported"));
   }, []);
@@ -300,7 +300,7 @@ function Notifications() {
         setState(permission === "denied" ? "blocked" : "off");
         return;
       }
-      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/admin" });
+      const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/chatapp" });
       await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64ToBytes(publicKey) });
       const { ok } = await adminApi("/api/admin/push", "POST", { subscription: sub.toJSON() });
@@ -315,7 +315,7 @@ function Notifications() {
 
   const turnOff = async () => {
     setBusy(true);
-    const reg = await navigator.serviceWorker.getRegistration("/admin");
+    const reg = await navigator.serviceWorker.getRegistration("/chatapp");
     const sub = await reg?.pushManager.getSubscription();
     if (sub) {
       await adminApi("/api/admin/push", "DELETE", { endpoint: sub.endpoint });
@@ -790,7 +790,7 @@ function SignOut() {
         className="press flex w-full items-center gap-3 text-left text-[15px] font-medium text-danger"
         onClick={async () => {
           await adminApi("/api/admin/logout", "POST", {});
-          window.location.href = "/admin/login";
+          window.location.href = "/chatapp/login";
         }}
       >
         <LogoutIcon /> Sign out of this device

@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /** Names only, never values. */
 const ENV = [
-  ["ADMIN_PASSWORD", "Admin app password"],
+  ["ADMIN_PASSWORD", "Chat app password"],
   ["DEVELOPER_PASSWORD", "Developer page password (uses the admin password when not set)"],
   ["RESEND_API_KEY", "Sends lead emails"],
   ["LEAD_FROM", "Sender for lead emails (a default is used when not set)"],

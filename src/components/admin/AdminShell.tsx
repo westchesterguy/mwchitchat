@@ -25,15 +25,41 @@ export const usePresence = () => useContext(PresenceContext);
  * full-screen over it; from a laptop width up the list stays on the left and
  * the chat or settings fill the rest, like a desktop messaging app.
  */
+/**
+ * The app moved from /admin to /chatapp, and a phone's notification sign-up
+ * belongs to the old address. Sign this device up again under the new one,
+ * with the same permission (no prompt), then drop the old sign-up.
+ */
+async function carryOverNotifications() {
+  const old = await navigator.serviceWorker.getRegistration("/admin");
+  if (!old || new URL(old.scope).pathname.startsWith("/chatapp")) return;
+  const oldSub = await old.pushManager.getSubscription();
+  const reg = await navigator.serviceWorker.ready;
+  if (oldSub && Notification.permission === "granted" && !(await reg.pushManager.getSubscription())) {
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: oldSub.options.applicationServerKey,
+    });
+    const { ok } = await adminApi("/api/admin/push", "POST", { subscription: sub.toJSON() });
+    if (!ok) return;
+    await adminApi("/api/admin/push", "DELETE", { endpoint: oldSub.endpoint });
+    await oldSub.unsubscribe().catch(() => {});
+  }
+  await old.unregister();
+}
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
-  const onList = path === "/admin";
-  const activeId = path.startsWith("/admin/c/") ? path.split("/")[3] ?? null : null;
+  const onList = path === "/chatapp";
+  const activeId = path.startsWith("/chatapp/c/") ? path.split("/")[3] ?? null : null;
   const [online, setOnlineState] = useState<boolean | null>(null);
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js", { scope: "/admin" }).catch(() => {});
+      navigator.serviceWorker
+        .register("/sw.js", { scope: "/chatapp" })
+        .then(carryOverNotifications)
+        .catch(() => {});
     }
     adminApi<{ online: boolean }>("/api/admin/settings").then(({ ok, data }) => ok && setOnlineState(data.online));
   }, []);
@@ -83,9 +109,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
                   {online === null ? "…" : online ? "Online" : "Away"}
                 </button>
                 <Link
-                  href="/admin/settings"
+                  href="/chatapp/settings"
                   aria-label="Settings"
-                  className={`press rounded-full p-2 hover:bg-white/10 ${path === "/admin/settings" ? "bg-white/15" : ""}`}
+                  className={`press rounded-full p-2 hover:bg-white/10 ${path === "/chatapp/settings" ? "bg-white/15" : ""}`}
                 >
                   <SettingsIcon className="h-[22px] w-[22px]" />
                 </Link>
