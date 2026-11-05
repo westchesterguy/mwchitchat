@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { postMessage, type Outgoing } from "../chat/attach";
 import { Composer } from "../chat/Composer";
 import { Thread } from "../chat/Thread";
 import { ago } from "../chat/time";
@@ -12,6 +13,9 @@ import { Menu, type MenuItem } from "../ui/Menu";
 import { Sheet } from "../ui/Sheet";
 import { chime } from "./tones";
 import { adminApi, device, pagePath, place, poll, siteName } from "./util";
+
+const contactButton =
+  "press inline-flex h-7 items-center gap-1.5 rounded-full bg-white/15 px-3 text-[12px] font-semibold text-white hover:bg-white/25";
 
 interface Conversation {
   id: string;
@@ -46,6 +50,30 @@ interface Visitor {
   chats: number;
 }
 
+const EMAIL_IN_TEXT = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+// (914) 555-0100, 914-555-0100, 914.555.0100, +1 914 555 0100, or an
+// international number written with a leading +.
+const PHONE_IN_TEXT =
+  /(?<![\w$])(?:\+?1[\s.-]?)?(?:\(\d{3}\)\s?|\d{3}[\s.-]?)\d{3}[\s.-]?\d{4}(?!\d)|(?<![\w$])\+\d(?:[\s.-]?\d){7,14}(?!\d)/;
+
+/**
+ * How to reach the visitor: what they gave in the pre-chat questions, or
+ * else the latest phone number or email they typed in the chat.
+ */
+function contactOf(visitor: { email: string | null; phone: string | null } | null, messages: ChatMessage[]) {
+  let email = visitor?.email || null;
+  let phone = visitor?.phone || null;
+  for (let i = messages.length - 1; i >= 0 && (!email || !phone); i--) {
+    const m = messages[i];
+    if (m.sender !== "visitor" || !m.body) continue;
+    email ??= m.body.match(EMAIL_IN_TEXT)?.[0] ?? null;
+    phone ??= m.body.match(PHONE_IN_TEXT)?.[0].trim() ?? null;
+  }
+  return { email, phone };
+}
+
+const telHref = (phone: string) => `tel:${phone.replace(/[^+\d]/g, "")}`;
+
 export function ConversationView({ id }: { id: string }) {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [visitor, setVisitor] = useState<Visitor | null>(null);
@@ -75,12 +103,11 @@ export function ConversationView({ id }: { id: string }) {
     [id, merge, lastId],
   );
 
-  const send = async (text: string) => {
-    const temp = optimistic("agent", text);
-    const { ok, data } = await adminApi<{ message: ChatMessage }>(`/api/admin/conversations/${id}/messages`, "POST", {
-      body: text,
-    });
-    settle(temp, ok ? data.message : null);
+  const send = async (text: string, file: Outgoing | null = null) => {
+    const temp = optimistic("agent", text, file);
+    const { ok, status, data } = await postMessage<{ message?: ChatMessage }>(`/api/admin/conversations/${id}/messages`, text, file);
+    if (status === 401) window.location.href = "/admin/login";
+    settle(temp, ok && data.message ? data.message : null);
     if (ok) setConversation((c) => (c ? { ...c, status: "open" } : c));
   };
 
@@ -93,6 +120,8 @@ export function ConversationView({ id }: { id: string }) {
     if (window.matchMedia("(min-width: 1280px)").matches) setPane((p) => !p);
     else setSheet(true);
   };
+
+  const reach = useMemo(() => contactOf(visitor, messages), [visitor, messages]);
 
   if (missing) {
     return (
@@ -107,10 +136,8 @@ export function ConversationView({ id }: { id: string }) {
 
   const name = visitor?.name || visitor?.email || "Visitor";
   const menu: MenuItem[] = [
-    ...(visitor?.email ? [{ label: "Email visitor", icon: <MailIcon className="h-[18px] w-[18px]" />, href: `mailto:${visitor.email}` }] : []),
-    ...(visitor?.phone
-      ? [{ label: "Call visitor", icon: <PhoneIcon className="h-[18px] w-[18px]" />, href: `tel:${visitor.phone.replace(/[^+\d]/g, "")}` }]
-      : []),
+    ...(reach.email ? [{ label: "Email visitor", icon: <MailIcon className="h-[18px] w-[18px]" />, href: `mailto:${reach.email}` }] : []),
+    ...(reach.phone ? [{ label: "Call visitor", icon: <PhoneIcon className="h-[18px] w-[18px]" />, href: telHref(reach.phone) }] : []),
     conversation?.status === "closed"
       ? { label: "Reopen chat", icon: <ChatIcon className="h-[18px] w-[18px]" />, onSelect: () => setStatus("open") }
       : { label: "Close chat", icon: <ChatIcon className="h-[18px] w-[18px]" />, onSelect: () => setStatus("closed"), danger: true },
@@ -123,27 +150,41 @@ export function ConversationView({ id }: { id: string }) {
           <Link href="/admin" aria-label="Back to chats" className="press rounded-full p-2 hover:bg-white/10 lg:hidden">
             <BackIcon className="h-6 w-6" />
           </Link>
-          <button
-            type="button"
-            onClick={toggleDetails}
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-xl px-1 py-1 text-left lg:pl-2"
-          >
-            {visitor ? (
-              <Avatar name={name} online={visitor.online} ring="var(--color-chrome)" />
-            ) : (
-              <span className="skeleton h-11 w-11 !rounded-full opacity-30" />
-            )}
-            <span className="min-w-0">
-              <span className="block truncate text-[16px] font-semibold">{visitor ? name : "Loading…"}</span>
-              <span className="block truncate text-[12px] text-white/70">
-                {!visitor
-                  ? ""
-                  : visitor.online
-                    ? `Online · ${visitor.current_title || pagePath(visitor.current_url) || siteName(visitor.current_site)}`
-                    : `Last seen ${ago(visitor.last_seen_at)}`}
-              </span>
-            </span>
-          </button>
+          <div className="flex min-w-0 flex-1 items-center gap-3 px-1 py-1 lg:pl-2">
+            <button type="button" onClick={toggleDetails} tabIndex={-1} aria-hidden className="shrink-0">
+              {visitor ? (
+                <Avatar name={name} online={visitor.online} ring="var(--color-chrome)" />
+              ) : (
+                <span className="skeleton block h-11 w-11 !rounded-full opacity-30" />
+              )}
+            </button>
+            <div className="min-w-0 flex-1">
+              <button type="button" onClick={toggleDetails} className="block w-full min-w-0 text-left">
+                <span className="block truncate text-[16px] font-semibold">{visitor ? name : "Loading…"}</span>
+                <span className="block truncate text-[12px] text-white/70">
+                  {!visitor
+                    ? ""
+                    : visitor.online
+                      ? `Online · ${visitor.current_title || pagePath(visitor.current_url) || siteName(visitor.current_site)}`
+                      : `Last seen ${ago(visitor.last_seen_at)}`}
+                </span>
+              </button>
+              {(reach.phone || reach.email) && (
+                <div className="anim-fade mt-1.5 flex gap-1.5">
+                  {reach.phone && (
+                    <a href={telHref(reach.phone)} title={reach.phone} className={contactButton}>
+                      <PhoneIcon className="h-3.5 w-3.5" strokeWidth={2} /> Call
+                    </a>
+                  )}
+                  {reach.email && (
+                    <a href={`mailto:${reach.email}`} title={reach.email} className={contactButton}>
+                      <MailIcon className="h-3.5 w-3.5" strokeWidth={2} /> Email
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
           <button
             type="button"
             onClick={toggleDetails}
@@ -171,7 +212,7 @@ export function ConversationView({ id }: { id: string }) {
             otherAvatar={<Avatar name={name} size="sm" />}
             onRetry={(m) => {
               remove(m.id);
-              send(m.body);
+              send(m.body, m.outgoing ?? null);
             }}
           />
         ) : (
@@ -195,12 +236,12 @@ export function ConversationView({ id }: { id: string }) {
           <div className="px-5 pb-1 pt-5">
             <h2 className="text-[17px] font-semibold">Details</h2>
           </div>
-          <Details conversation={conversation} visitor={visitor} />
+          <Details conversation={conversation} visitor={visitor} reach={reach} />
         </aside>
       )}
 
       <Sheet open={sheet} onClose={() => setSheet(false)} title="Details">
-        {conversation && visitor && <Details conversation={conversation} visitor={visitor} />}
+        {conversation && visitor && <Details conversation={conversation} visitor={visitor} reach={reach} />}
       </Sheet>
     </div>
   );
@@ -235,7 +276,15 @@ function answerLabel(a: { key: string; label: string }): string {
  * Where the chat started, IP address and location, the lead's answers, then
  * a short summary of the visitor.
  */
-function Details({ conversation: c, visitor: v }: { conversation: Conversation; visitor: Visitor }) {
+function Details({
+  conversation: c,
+  visitor: v,
+  reach,
+}: {
+  conversation: Conversation;
+  visitor: Visitor;
+  reach: { email: string | null; phone: string | null };
+}) {
   const link = (url: string | null, title: string | null) =>
     url ? (
       <a href={url} target="_blank" rel="noopener noreferrer" className="text-accent underline decoration-accent/30 underline-offset-2">
@@ -259,16 +308,16 @@ function Details({ conversation: c, visitor: v }: { conversation: Conversation; 
           </p>
         </div>
       </div>
-      {(v.email || v.phone) && (
+      {(reach.email || reach.phone) && (
         <div className="-mt-1 flex gap-2">
-          {v.email && (
-            <a href={`mailto:${v.email}`} className={button}>
-              <MailIcon className="h-4 w-4" /> Email
+          {reach.phone && (
+            <a href={telHref(reach.phone)} className={button}>
+              <PhoneIcon className="h-4 w-4" /> Call
             </a>
           )}
-          {v.phone && (
-            <a href={`tel:${v.phone.replace(/[^+\d]/g, "")}`} className={button}>
-              <PhoneIcon className="h-4 w-4" /> Call
+          {reach.email && (
+            <a href={`mailto:${reach.email}`} className={button}>
+              <MailIcon className="h-4 w-4" /> Email
             </a>
           )}
         </div>

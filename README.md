@@ -15,6 +15,13 @@ Michael from his own app. It replaces Tawk.to.
   those that arrive while he is away. A test button there proves delivery.
 - **When Michael is away** (the switch at the top of the app), the visitor is
   told he has their message and will follow up.
+- **Photos and PDFs** can be sent by either side from the paperclip in the
+  reply bar (or pasted or dropped there). Photos are shrunk in the browser to
+  1600 px before upload; files are capped at 4 MB, checked by their contents,
+  kept in the database and served only through this app.
+- **Call and Email** buttons sit under the visitor's name in a chat once a
+  phone number or email is known, from the pre-chat questions or typed in
+  the chat.
 - **Notifications** reach his phone when a chat starts or a visitor writes,
   through Web Push. No Firebase project is needed.
 

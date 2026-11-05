@@ -20,14 +20,19 @@ export async function GET(req: Request) {
         where m.conversation_id = c.id and m.sender = 'visitor'
           and (c.agent_last_read_at is null or m.created_at > c.agent_last_read_at)
       ) as unread,
-      lm.body as preview,
+      case
+        when lm.body = '' and lm.file_type = 'application/pdf' then 'PDF'
+        when lm.body = '' and lm.file_type is not null then 'Photo'
+        else lm.body
+      end as preview,
       lm.sender as last_sender
     from conversations c
     join visitors v on v.id = c.visitor_id
     left join lateral (
-      select body, sender from messages m
+      select m.body, m.sender, a.type as file_type from messages m
+      left join attachments a on a.id = m.attachment_id
       where m.conversation_id = c.id and m.sender <> 'system'
-      order by id desc limit 1
+      order by m.id desc limit 1
     ) lm on true
     where c.status = ${status}
     order by c.last_message_at desc

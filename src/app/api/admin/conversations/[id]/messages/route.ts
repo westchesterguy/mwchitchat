@@ -1,23 +1,36 @@
 import { adminGuard } from "@/lib/admin-auth";
 import { addMessage, MESSAGE_MAX } from "@/lib/chat";
 import { db } from "@/lib/db";
+import { readMessageForm, type Upload } from "@/lib/files";
 import { jsonError, UUID } from "@/lib/guard";
 import { readJson, str } from "@/lib/request";
 
-/** Michael replies. Replying reopens a chat the visitor had ended. */
+/**
+ * Michael replies: JSON for text, or a form when a photo or PDF is
+ * attached. Replying reopens a chat the visitor had ended.
+ */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const denied = await adminGuard(req);
   if (denied) return denied;
   const { id } = await ctx.params;
   if (!UUID.test(id)) return jsonError(404, "not_found");
 
-  const text = str((await readJson(req))?.body, MESSAGE_MAX);
-  if (!text) return jsonError(400, "bad_request");
+  let text: string;
+  let file: Upload | null = null;
+  if (req.headers.get("content-type")?.startsWith("multipart/form-data")) {
+    const form = await readMessageForm(req);
+    if (!form.ok) return Response.json({ error: "invalid", message: form.error }, { status: 400 });
+    text = str(form.text, MESSAGE_MAX);
+    file = form.file;
+  } else {
+    text = str((await readJson(req))?.body, MESSAGE_MAX);
+  }
+  if (!text && !file) return jsonError(400, "bad_request");
 
   const [found] = await db()`
     update conversations set status = 'open', closed_at = null, agent_last_read_at = now()
     where id = ${id} returning id`;
   if (!found) return jsonError(404, "not_found");
 
-  return Response.json({ message: await addMessage(id, "agent", text) });
+  return Response.json({ message: await addMessage(id, "agent", text, file) });
 }

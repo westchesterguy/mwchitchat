@@ -115,3 +115,12 @@ export const SpeakerIcon = (p: IconProps) => (
 export const MuteIcon = (p: IconProps) => (
   <Icon {...p}><path d="M4.5 9.5h3l4-3.5v12l-4-3.5h-3z" /><path d="M16 9.5l5 5M21 9.5l-5 5" /></Icon>
 );
+export const PaperclipIcon = (p: IconProps) => (
+  <Icon {...p}><path d="M20 11.5l-7.6 7.6a5 5 0 0 1-7.1-7.1l8.1-8.1a3.4 3.4 0 0 1 4.8 4.8l-8 8a1.8 1.8 0 0 1-2.5-2.5l7.3-7.3" /></Icon>
+);
+export const FileIcon = (p: IconProps) => (
+  <Icon {...p}><path d="M14 3.5H7A1.5 1.5 0 0 0 5.5 5v14A1.5 1.5 0 0 0 7 20.5h10a1.5 1.5 0 0 0 1.5-1.5V8z" /><path d="M14 3.5V8h4.5M8.5 13h7M8.5 16.5h5" /></Icon>
+);
+export const ExternalIcon = (p: IconProps) => (
+  <Icon {...p}><path d="M14 4.5h5.5V10M19.5 4.5L11 13M17 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 4 18.5v-10A1.5 1.5 0 0 1 5.5 7H10" /></Icon>
+);

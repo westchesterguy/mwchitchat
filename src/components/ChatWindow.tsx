@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { contact, HEADSHOT_URL } from "@/lib/sites";
+import { postMessage, type Outgoing } from "./chat/attach";
 import { Composer } from "./chat/Composer";
 import { Thread } from "./chat/Thread";
 import { useMessages, type ChatMessage } from "./chat/useMessages";
@@ -162,10 +163,12 @@ export function ChatWindow({ site, privacyUrl }: { site: string; privacyUrl: str
     return null;
   };
 
-  const send = async (text: string) => {
-    const temp = optimistic("visitor", text);
-    const { ok, status, data } = await api("/api/v/message", { body: text });
-    settle(temp, ok ? data.message : null);
+  const send = async (text: string, file: Outgoing | null = null) => {
+    const temp = optimistic("visitor", text, file);
+    const { ok, status, data } = await postMessage<{ message?: ChatMessage }>("/api/v/message", text, file, {
+      "x-mwchat-token": token.current,
+    });
+    settle(temp, ok && data.message ? data.message : null);
     if (status === 409) setConversation((c) => (c ? { ...c, status: "closed" } : c));
   };
 
@@ -248,7 +251,7 @@ export function ChatWindow({ site, privacyUrl }: { site: string; privacyUrl: str
             otherAvatar={<Avatar name={MICHAEL} src={HEADSHOT_URL} size="sm" />}
             onRetry={(m) => {
               remove(m.id);
-              send(m.body);
+              send(m.body, m.outgoing ?? null);
             }}
           />
           {open ? (

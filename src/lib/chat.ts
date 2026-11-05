@@ -1,12 +1,24 @@
 import { db } from "./db";
+import type { Upload } from "./files";
 
 export type Sender = "visitor" | "agent" | "system";
+
+export interface Attachment {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  width: number | null;
+  height: number | null;
+  url: string;
+}
 
 export interface ChatMessage {
   id: number;
   sender: Sender;
   body: string;
   at: string;
+  attachment: Attachment | null;
 }
 
 function toMessage(row: Record<string, unknown>): ChatMessage {
@@ -15,6 +27,17 @@ function toMessage(row: Record<string, unknown>): ChatMessage {
     sender: row.sender as Sender,
     body: row.body as string,
     at: new Date(row.created_at as string).toISOString(),
+    attachment: row.file_id
+      ? {
+          id: row.file_id as string,
+          name: row.file_name as string,
+          type: row.file_type as string,
+          size: Number(row.file_size),
+          width: (row.file_width as number | null) ?? null,
+          height: (row.file_height as number | null) ?? null,
+          url: `/api/files/${row.file_id}`,
+        }
+      : null,
   };
 }
 
@@ -24,25 +47,50 @@ export async function addMessage(
   conversationId: string,
   sender: Sender,
   body: string,
+  file: Upload | null = null,
 ): Promise<ChatMessage> {
+  if (!file) {
+    const [row] = await db()`
+      with m as (
+        insert into messages (conversation_id, sender, body)
+        values (${conversationId}, ${sender}, ${body})
+        returning id::text, sender, body, created_at
+      ), c as (
+        update conversations set last_message_at = now()
+        where id = ${conversationId}
+      )
+      select * from m`;
+    return toMessage(row);
+  }
+  // The file and its message are saved in one statement: both or neither.
   const [row] = await db()`
-    with m as (
-      insert into messages (conversation_id, sender, body)
-      values (${conversationId}, ${sender}, ${body})
+    with a as (
+      insert into attachments (conversation_id, name, type, size, width, height, data)
+      values (${conversationId}, ${file.name}, ${file.type}, ${file.data.length}, ${file.width}, ${file.height}, ${file.data})
+      returning id, name, type, size, width, height
+    ), m as (
+      insert into messages (conversation_id, sender, body, attachment_id)
+      select ${conversationId}::uuid, ${sender}, ${body}, a.id from a
       returning id::text, sender, body, created_at
     ), c as (
       update conversations set last_message_at = now()
       where id = ${conversationId}
     )
-    select * from m`;
+    select m.*, a.id as file_id, a.name as file_name, a.type as file_type, a.size as file_size,
+           a.width as file_width, a.height as file_height
+    from m, a`;
   return toMessage(row);
 }
 
 export async function messagesAfter(conversationId: string, after: number): Promise<ChatMessage[]> {
   const rows = await db()`
-    select id::text, sender, body, created_at from messages
-    where conversation_id = ${conversationId} and id > ${after}
-    order by id
+    select m.id::text, m.sender, m.body, m.created_at,
+           a.id as file_id, a.name as file_name, a.type as file_type, a.size as file_size,
+           a.width as file_width, a.height as file_height
+    from messages m
+    left join attachments a on a.id = m.attachment_id
+    where m.conversation_id = ${conversationId} and m.id > ${after}
+    order by m.id
     limit 500`;
   return rows.map(toMessage);
 }

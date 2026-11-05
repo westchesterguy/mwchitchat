@@ -1,9 +1,10 @@
 "use client";
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { AlertIcon, ArrowDownIcon, CheckIcon, ClockIcon } from "../ui/icons";
+import { AlertIcon, ArrowDownIcon, CheckIcon, ClockIcon, CloseIcon, DownloadIcon, ExternalIcon, FileIcon, Spinner } from "../ui/icons";
+import { fileSize } from "./attach";
 import { clock, dayKey, dayLabel } from "./time";
-import type { ChatMessage, Sender } from "./useMessages";
+import type { Attachment, ChatMessage, Sender } from "./useMessages";
 
 const RUN_GAP_MS = 5 * 60_000;
 const URL = /(https?:\/\/[^\s<]+[^\s<.,;:!?)\]'"])/g;
@@ -28,6 +29,108 @@ function Linked({ text, mine }: { text: string; mine: boolean }) {
         ),
       )}
     </>
+  );
+}
+
+/** A photo's size in the thread: at most 240 wide and 300 tall, never thinner than 120. */
+function fit(w: number | null, h: number | null): { width: number; height: number } {
+  if (!w || !h) return { width: 240, height: 180 };
+  let width = Math.min(240, w);
+  let height = (width * h) / w;
+  if (height > 300) {
+    height = 300;
+    width = Math.max(120, (height * w) / h);
+  }
+  return { width: Math.round(width), height: Math.round(height) };
+}
+
+function AttachmentView({
+  a,
+  mine,
+  pending,
+  failed,
+  onOpen,
+}: {
+  a: Attachment;
+  mine: boolean;
+  pending?: boolean;
+  failed?: boolean;
+  onOpen: (a: Attachment) => void;
+}) {
+  const ring = failed ? "ring-1 ring-danger/50" : "";
+  if (a.type.startsWith("image/")) {
+    const size = fit(a.width, a.height);
+    return (
+      <button
+        type="button"
+        onClick={() => onOpen(a)}
+        aria-label={`Open photo ${a.name}`}
+        className={`press relative block overflow-hidden rounded-[18px] bg-chip shadow-[var(--shadow-bubble)] ${ring}`}
+        style={size}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={a.url} alt={a.name} width={size.width} height={size.height} loading="lazy" className="h-full w-full object-cover" />
+        {pending && (
+          <span className="absolute inset-0 flex items-center justify-center bg-black/25 text-white">
+            <Spinner className="h-6 w-6" />
+          </span>
+        )}
+      </button>
+    );
+  }
+  const body = (
+    <>
+      <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${mine ? "bg-white/15" : "bg-navy-tint text-accent"}`}>
+        {pending ? <Spinner className="h-5 w-5" /> : <FileIcon className="h-5 w-5" />}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14px] font-medium">{a.name}</span>
+        <span className={`block text-[12px] ${mine ? "text-white/70" : "text-muted"}`}>PDF &middot; {fileSize(a.size)}</span>
+      </span>
+    </>
+  );
+  const tile = `flex w-[240px] max-w-full items-center gap-3 rounded-[18px] px-3 py-2.5 text-left ${
+    mine ? "bg-navy text-white" : "bg-bubble text-ink shadow-[var(--shadow-bubble)]"
+  } ${ring}`;
+  return pending ? (
+    <div className={`${tile} opacity-80`}>{body}</div>
+  ) : (
+    <a href={a.url} target="_blank" rel="noopener noreferrer" className={`press ${tile}`}>
+      {body}
+    </a>
+  );
+}
+
+/** A photo full screen, with a way to open or save the original. */
+function Lightbox({ a, onClose }: { a: Attachment; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const action = "press flex h-10 w-10 items-center justify-center rounded-full text-white hover:bg-white/15";
+  return (
+    <div role="dialog" aria-modal="true" aria-label={a.name} className="anim-fade fixed inset-0 z-50 flex flex-col bg-black/90" onClick={onClose}>
+      <div className="flex items-center justify-end gap-1 px-2 pt-[max(0.5rem,env(safe-area-inset-top))]" onClick={(e) => e.stopPropagation()}>
+        {a.id && (
+          <>
+            <a href={a.url} target="_blank" rel="noopener noreferrer" aria-label="Open in a new tab" className={action}>
+              <ExternalIcon className="h-5 w-5" />
+            </a>
+            <a href={a.url} download={a.name} aria-label="Save" className={action}>
+              <DownloadIcon className="h-5 w-5" />
+            </a>
+          </>
+        )}
+        <button type="button" aria-label="Close" onClick={onClose} className={action}>
+          <CloseIcon className="h-6 w-6" />
+        </button>
+      </div>
+      <div className="flex min-h-0 flex-1 items-center justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={a.url} alt={a.name} className="max-h-full max-w-full rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+      </div>
+    </div>
   );
 }
 
@@ -57,6 +160,7 @@ export function Thread({
   const initial = useRef<Set<number> | null>(null);
   const nearBottom = useRef(true);
   const [unseen, setUnseen] = useState(false);
+  const [viewing, setViewing] = useState<Attachment | null>(null);
   const count = messages.length;
   const last = messages[count - 1];
 
@@ -150,15 +254,20 @@ export function Thread({
                   {!isMine && first && (
                     <span className="mb-1 ml-3 text-[11px] font-medium text-muted">{otherName}</span>
                   )}
-                  <div
-                    className={`whitespace-pre-wrap break-words rounded-[18px] px-3.5 py-2 text-[15px] leading-[1.4] ${corners} ${
-                      isMine
-                        ? `bg-navy text-white ${m.pending ? "opacity-80" : ""}`
-                        : "bg-bubble text-ink shadow-[var(--shadow-bubble)]"
-                    } ${m.failed ? "ring-1 ring-danger/50" : ""}`}
-                  >
-                    <Linked text={m.body} mine={isMine} />
-                  </div>
+                  {m.attachment && (
+                    <AttachmentView a={m.attachment} mine={isMine} pending={m.pending} failed={m.failed} onOpen={setViewing} />
+                  )}
+                  {m.body && (
+                    <div
+                      className={`whitespace-pre-wrap break-words rounded-[18px] px-3.5 py-2 text-[15px] leading-[1.4] ${corners} ${
+                        isMine
+                          ? `bg-navy text-white ${m.pending ? "opacity-80" : ""}`
+                          : "bg-bubble text-ink shadow-[var(--shadow-bubble)]"
+                      } ${m.failed ? "ring-1 ring-danger/50" : ""} ${m.attachment ? "mt-[3px]" : ""}`}
+                    >
+                      <Linked text={m.body} mine={isMine} />
+                    </div>
+                  )}
                   {lastOfRun && (
                     <span className="mx-1.5 mt-1 flex items-center gap-1 text-[11px] text-faint">
                       {m.failed ? (
@@ -200,6 +309,7 @@ export function Thread({
           <ArrowDownIcon className="h-3.5 w-3.5" strokeWidth={2} /> New messages
         </button>
       )}
+      {viewing && <Lightbox a={viewing} onClose={() => setViewing(null)} />}
     </div>
   );
 }
