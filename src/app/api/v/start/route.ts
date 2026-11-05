@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { addMessage, adminLink, MESSAGE_MAX, messagesAfter } from "@/lib/chat";
+import { getChatSettings } from "@/lib/chat-settings";
 import { db, getSetting } from "@/lib/db";
 import { answerOf, fieldsForSite, validateAnswers } from "@/lib/fields";
 import { isSameOrigin, jsonError, overLimit } from "@/lib/guard";
@@ -74,11 +75,8 @@ export async function POST(req: Request) {
   const link = adminLink(req, `/admin/c/${conversationId}`);
 
   if (isNew && !online) {
-    await addMessage(
-      conversationId,
-      "system",
-      "Michael is away right now. He has your message and details and will follow up with you.",
-    );
+    await addMessage(conversationId, "system", (await getChatSettings()).awayMessage);
+    await db()`update conversations set started_away = true where id = ${conversationId}`;
   }
 
   // Every new lead is emailed to the addresses in Settings, or only those
@@ -89,6 +87,7 @@ export async function POST(req: Request) {
       after(() =>
         emailLead({
           to,
+          conversationId: conversationId!,
           domain: site.domain,
           answers,
           message,

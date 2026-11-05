@@ -1,6 +1,7 @@
 import webpush from "web-push";
 import { db } from "./db";
 import { getVapidKeys } from "./secrets";
+import { logError } from "./log";
 
 /**
  * Phone and desktop notifications to Michael, through the browser's own push
@@ -44,7 +45,10 @@ export async function notifyAgent(message: PushMessage): Promise<void> {
         if (status === 404 || status === 410) {
           await db()`delete from push_subscriptions where endpoint = ${s.endpoint}`;
         } else {
-          console.error(JSON.stringify({ pushError: status ?? (err as Error).name }));
+          await logError("push", `A notification could not be delivered (${status ?? (err as Error).name}).`, {
+            status: status ?? null,
+            service: new URL(s.endpoint).host,
+          });
         }
       }
     }),

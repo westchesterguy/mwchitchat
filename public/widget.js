@@ -11,9 +11,10 @@
  * chat window from the chat app in a frame, and, only for someone with a
  * chat under way, reports the page they are on so Michael can see it.
  *
- * Once per visit, after 8 seconds or half a page of scrolling, a ring
- * spreads from the button and a short greeting from Michael slides out
- * beside it. Closing it keeps it away for a week.
+ * Once per visit, after a few seconds (8 unless changed on the developer
+ * page) or half a page of scrolling, a ring spreads from the button and a
+ * short greeting from Michael slides out beside it. Closing it keeps it
+ * away for a week. The developer page can also hide the button on a site.
  * Everything it adds to the page is prefixed mwchat- so it cannot collide
  * with the site's own styles.
  */
@@ -127,6 +128,8 @@
   var teaserTimers = [];
   var teaserHide = null;
   var chatOpened = false;
+  var greeting = null;
+  var launcherAllowed = false;
 
   function mobile() {
     return window.matchMedia("(max-width: 640px)").matches;
@@ -146,7 +149,7 @@
       s.height = "min(640px, calc(100vh - 128px))";
       s.borderRadius = "18px";
     }
-    if (launcher) launcher.style.display = isOpen && mobile() ? "none" : "flex";
+    if (launcher) launcher.style.display = !launcherAllowed || (isOpen && mobile()) ? "none" : "flex";
     // A full-screen chat on a phone should not let the page scroll behind it.
     var lock = isOpen && mobile();
     if (lock && savedOverflow === null) {
@@ -382,12 +385,21 @@
     autoHide(mobile() ? 15000 : 25000);
   }
 
-  function tease() {
-    if (teaser || quiet() || !launcher) return;
-    fetch(base + "/api/v/teaser?site=" + encodeURIComponent(site) + "&path=" + encodeURIComponent(location.pathname), {
+  /** Whether to show the button here, and the greeting. Null if the chat app can't be reached. */
+  function loadConfig() {
+    return fetch(base + "/api/v/widget?site=" + encodeURIComponent(site) + "&path=" + encodeURIComponent(location.pathname), {
       mode: "cors",
     })
       .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; });
+  }
+
+  function tease() {
+    if (teaser || quiet() || !launcher || !launcherAllowed) return;
+    var ready = greeting
+      ? Promise.resolve(greeting)
+      : loadConfig().then(function (c) { return c && c.greeting; });
+    ready
       .then(function (d) {
         if (!d || !d.text || quiet()) return;
         // The ring first; the greeting follows once the photo is ready.
@@ -412,8 +424,8 @@
       .catch(function () {});
   }
 
-  /** After 8 seconds, or once half the page has been scrolled after 3. */
-  function scheduleTeaser() {
+  /** After the set delay, or once half the page has been scrolled after 3 seconds. */
+  function scheduleTeaser(delay) {
     if (!launcher || quiet() || get("sessionStorage", "mwchat:teased") === "1") return;
     var since = Date.now();
     var timer = null;
@@ -431,10 +443,10 @@
     function onScroll() {
       var doc = document.documentElement;
       var room = doc.scrollHeight - window.innerHeight;
-      if (room > 0 && window.scrollY / room >= 0.5 && Date.now() - since > 3000) fire();
+      if (room > 0 && window.scrollY / room >= 0.5 && Date.now() - since > Math.min(3000, delay)) fire();
     }
     window.addEventListener("scroll", onScroll, { passive: true });
-    timer = setTimeout(fire, 8000);
+    timer = setTimeout(fire, delay);
   }
 
   window.addEventListener("message", function (e) {
@@ -490,7 +502,16 @@
       badge.className = "mwchat-badge";
       launcher.appendChild(badge);
       launcher.addEventListener("click", toggle);
+      launcher.style.display = "none";
       document.body.appendChild(launcher);
+      // The button shows once the chat app says it is on for this site, or
+      // if the app can't be reached (better a button than none).
+      loadConfig().then(function (c) {
+        launcherAllowed = !c || c.launcher !== false;
+        greeting = (c && c.greeting) || null;
+        layout();
+        if (greeting) scheduleTeaser(Math.max(2, Number(greeting.delay) || 8) * 1000);
+      });
     }
     window.addEventListener("resize", layout);
     document.addEventListener("keydown", function (e) {
@@ -504,7 +525,6 @@
       ping();
     }
     if (get("sessionStorage", "mwchat:open") === "1") open();
-    scheduleTeaser();
 
     var lastUrl = location.href;
     setInterval(function () {

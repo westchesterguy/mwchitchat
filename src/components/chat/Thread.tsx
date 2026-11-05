@@ -257,6 +257,11 @@ export function Thread({
                   {m.attachment && (
                     <AttachmentView a={m.attachment} mine={isMine} pending={m.pending} failed={m.failed} onOpen={setViewing} />
                   )}
+                  {!m.body && !m.attachment && (
+                    <div className="rounded-[18px] border border-dashed border-line px-3.5 py-2 text-[13px] italic text-muted">
+                      Attachment removed
+                    </div>
+                  )}
                   {m.body && (
                     <div
                       className={`whitespace-pre-wrap break-words rounded-[18px] px-3.5 py-2 text-[15px] leading-[1.4] ${corners} ${

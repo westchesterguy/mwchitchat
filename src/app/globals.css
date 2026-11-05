@@ -27,6 +27,10 @@
   --color-live: #2fb36b;
   --color-warn: #a35a00;
   --color-danger: #b42318;
+  /* Chart series on the developer page, one per site. Checked for
+     colour-blind separation and contrast in both themes. */
+  --color-series-1: #1f5aa6;
+  --color-series-2: #eb6834;
   --font-sans: var(--font-inter), "Helvetica Neue", Arial, sans-serif;
   --font-display: var(--font-playfair), Georgia, "Times New Roman", serif;
   --shadow-bubble: 0 1px 1px rgba(23, 24, 26, 0.06), 0 1px 2px rgba(23, 24, 26, 0.04);
@@ -69,6 +73,8 @@ html[data-theme="dark"] {
   --color-live: #34c46a;
   --color-warn: #e3a64e;
   --color-danger: #f07a6c;
+  --color-series-1: #4a86d4;
+  --color-series-2: #d95926;
   --shadow-bubble: 0 1px 1px rgba(0, 0, 0, 0.35);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.35);
 }

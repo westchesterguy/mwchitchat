@@ -1,5 +1,6 @@
 import { after } from "next/server";
 import { addMessage, MESSAGE_MAX } from "@/lib/chat";
+import { getChatSettings } from "@/lib/chat-settings";
 import { db } from "@/lib/db";
 import { attachmentLabel, readMessageForm, type Upload } from "@/lib/files";
 import { isSameOrigin, jsonError, overLimit } from "@/lib/guard";
@@ -7,9 +8,6 @@ import { notifyAgent } from "@/lib/push";
 import { readJson, str } from "@/lib/request";
 import { sites, type SiteId } from "@/lib/sites";
 import { findVisitor, touchVisitor, visitorToken } from "@/lib/visitor";
-
-/** Photos and PDFs a visitor may send in one chat. */
-const FILES_PER_CHAT = 30;
 
 /**
  * The visitor sends a message in their open chat: JSON for text, or a form
@@ -26,6 +24,9 @@ export async function POST(req: Request) {
   let file: Upload | null = null;
   if (req.headers.get("content-type")?.startsWith("multipart/form-data")) {
     if (overLimit(req, "upload", 20, 60 * 60_000)) return jsonError(429, "rate_limited");
+    if (!(await getChatSettings()).visitorAttachments) {
+      return Response.json({ error: "invalid", message: "Attachments are turned off." }, { status: 400 });
+    }
     const form = await readMessageForm(req);
     if (!form.ok) return Response.json({ error: "invalid", message: form.error }, { status: 400 });
     text = str(form.text, MESSAGE_MAX);
@@ -39,10 +40,11 @@ export async function POST(req: Request) {
   if (!visitor?.conversationId || visitor.status !== "open") return jsonError(409, "no_open_chat");
 
   if (file) {
+    const { visitorFilesPerChat } = await getChatSettings();
     const [{ n }] = await db()`
       select count(*)::int as n from messages
       where conversation_id = ${visitor.conversationId} and sender = 'visitor' and attachment_id is not null`;
-    if (n >= FILES_PER_CHAT) {
+    if (n >= visitorFilesPerChat) {
       return Response.json({ error: "invalid", message: "This chat has reached its limit for attachments." }, { status: 400 });
     }
   }

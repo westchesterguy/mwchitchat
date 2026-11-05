@@ -9,6 +9,13 @@ const frameAncestors = (
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Shown on the developer page: which version is running.
+  env: {
+    BUILD_TIME: new Date().toISOString(),
+    BUILD_COMMIT: process.env.VERCEL_GIT_COMMIT_SHA ?? "",
+    BUILD_MESSAGE: (process.env.VERCEL_GIT_COMMIT_MESSAGE ?? "").split("\n")[0].slice(0, 160),
+    BUILD_BRANCH: process.env.VERCEL_GIT_COMMIT_REF ?? "",
+  },
   // Browsers ask for /favicon.ico on their own; answer with the app icon.
   async rewrites() {
     return [{ source: "/favicon.ico", destination: "/icons/icon-192.png" }];

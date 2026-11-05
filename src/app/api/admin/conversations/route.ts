@@ -1,5 +1,19 @@
 import { adminGuard } from "@/lib/admin-auth";
+import { getChatSettings } from "@/lib/chat-settings";
 import { db } from "@/lib/db";
+
+let lastSweep = 0;
+
+/** Closes chats with no messages for the number of days set on the developer page. */
+async function autoClose() {
+  if (Date.now() - lastSweep < 10 * 60_000) return;
+  lastSweep = Date.now();
+  const { autoCloseDays } = await getChatSettings();
+  if (autoCloseDays <= 0) return;
+  await db()`
+    update conversations set status = 'closed', closed_at = now()
+    where status = 'open' and last_message_at < now() - make_interval(days => ${autoCloseDays})`;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +22,7 @@ export async function GET(req: Request) {
   const denied = await adminGuard(req);
   if (denied) return denied;
 
+  await autoClose();
   const status = new URL(req.url).searchParams.get("status") === "closed" ? "closed" : "open";
   const rows = await db()`
     select
@@ -23,6 +38,7 @@ export async function GET(req: Request) {
       case
         when lm.body = '' and lm.file_type = 'application/pdf' then 'PDF'
         when lm.body = '' and lm.file_type is not null then 'Photo'
+        when lm.body = '' then 'Attachment removed'
         else lm.body
       end as preview,
       lm.sender as last_sender

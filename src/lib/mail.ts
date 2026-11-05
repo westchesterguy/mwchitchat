@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { getSetting } from "./db";
+import { db, getSetting } from "./db";
 import type { Answer } from "./fields";
 import type { Origin } from "./request";
 
@@ -38,11 +38,35 @@ export async function leadEmailMode(): Promise<LeadEmailMode> {
 
 type Sent = { ok: true } | { ok: false; error: string };
 
+/** Every send is recorded for the developer page, sent or not. */
+async function record(
+  meta: { kind: "lead" | "test"; conversationId?: string | null },
+  to: string[],
+  subject: string,
+  result: Sent,
+): Promise<Sent> {
+  try {
+    await db()`
+      insert into email_log (kind, conversation_id, recipients, subject, ok, error)
+      values (${meta.kind}, ${meta.conversationId ?? null}, ${to}, ${subject}, ${result.ok}, ${result.ok ? null : result.error})`;
+  } catch {
+    // The email's own result matters more than its log line.
+  }
+  return result;
+}
+
 /**
  * Resend reports failures in its result rather than by throwing, so the
  * result is always read; a lead email that silently fails is a lost lead.
  */
-async function send(message: { to: string[]; subject: string; text: string; html: string; replyTo?: string | null }): Promise<Sent> {
+async function send(
+  meta: { kind: "lead" | "test"; conversationId?: string | null },
+  message: { to: string[]; subject: string; text: string; html: string; replyTo?: string | null },
+): Promise<Sent> {
+  return record(meta, message.to, message.subject, await deliver(message));
+}
+
+async function deliver(message: { to: string[]; subject: string; text: string; html: string; replyTo?: string | null }): Promise<Sent> {
   if (!emailConfigured()) return { ok: false, error: "Email sending is not set up: RESEND_API_KEY is missing." };
   if (message.to.length === 0) return { ok: false, error: "No email address is set in Settings." };
   try {
@@ -106,6 +130,7 @@ function heading(text: string): string {
 
 export interface Lead {
   to: string[];
+  conversationId: string;
   domain: string;
   answers: Answer[];
   message: string;
@@ -156,13 +181,16 @@ ${heading("Chat started on")}${rows(started)}`,
     { href: lead.adminUrl, label: "Reply in MW Chat" },
   );
 
-  return send({ to: lead.to, subject: `[Chat] New lead on ${lead.domain}: ${name}`, text, html, replyTo: lead.replyTo });
+  return send(
+    { kind: "lead", conversationId: lead.conversationId },
+    { to: lead.to, subject: `[Chat] New lead on ${lead.domain}: ${name}`, text, html, replyTo: lead.replyTo },
+  );
 }
 
 /** From the Settings button, to prove the addresses and the sender work. */
 export async function emailTest(to: string[]): Promise<Sent> {
   const text = "This is a test from MW Chat. New leads from your websites will arrive at this address.";
-  return send({
+  return send({ kind: "test" }, {
     to,
     subject: "[Chat] Test email from MW Chat",
     text,

@@ -20,6 +20,7 @@ interface Field {
 }
 interface Config {
   online: boolean;
+  attachments?: boolean;
   phone: string;
   phoneHref: string;
   fields: Field[];
@@ -255,7 +256,7 @@ export function ChatWindow({ site, privacyUrl }: { site: string; privacyUrl: str
             }}
           />
           {open ? (
-            <Composer onSend={send} placeholder="Message" autoFocus />
+            <Composer onSend={send} placeholder="Message" autoFocus attachments={config?.attachments !== false} />
           ) : (
             <div className="anim-rise border-t border-line bg-paper px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 text-center">
               <p className="text-[14px] text-muted">This chat has ended.</p>

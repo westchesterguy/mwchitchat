@@ -30,6 +30,26 @@ Michael from his own app. It replaces Tawk.to.
 - **Notifications** reach his phone when a chat starts or a visitor writes,
   through Web Push. No Firebase project is needed.
 
+## Developer page
+
+`/developer`, for a web browser only (it is outside the app's scope, never
+linked from it, and says so if opened inside the installed app). Its own
+sign-in: `DEVELOPER_PASSWORD`, or `ADMIN_PASSWORD` until that is set, with a
+12-hour cookie sent only to `/developer`. Signing in here does not sign in to
+the admin app, nor the other way round.
+
+- **Leads:** every chat as a lead, searchable and filterable, with CSV export.
+- **Activity:** chats per day by site, start pages, places, time of day,
+  reply times.
+- **Health:** database, lead emails (with a log of every send and its
+  result), notifications, recorded errors, storage, version, which
+  environment variables are set.
+- **Chat settings:** the greeting (on or off, delay, its four lines), the
+  away message, visitor attachments, auto-closing quiet chats, the chat
+  button per site.
+- **Data:** a full JSON backup (no photos, no private keys), deleting one
+  person's data, clearing old photos and PDFs.
+
 ## Setup on Vercel
 
 1. **Database.** In the Vercel project: Storage, Create Database, Supabase,
@@ -51,6 +71,7 @@ notifications.
 | --- | --- | --- |
 | `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING` | yes | Added by the Supabase integration |
 | `ADMIN_PASSWORD` | yes | The admin app's password |
+| `DEVELOPER_PASSWORD` | no | A separate password for `/developer` |
 | `RESEND_API_KEY` | for lead email | Same key as the sites |
 | `LEAD_FROM` | no | Sender for lead email; its domain must be verified in Resend |
 | `LEAD_TO` | no | Inbox used until addresses are saved in Settings |

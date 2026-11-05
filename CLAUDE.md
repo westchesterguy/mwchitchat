@@ -34,6 +34,9 @@ Postgres.js v4 (Supabase, pooled, `prepare: false`) · Web Push · Resend.
 - `src/components/chat/`: the message thread, reply bar and message state both sides share
 - `src/components/ui/`: icons, avatar, switch, bottom sheet, menu
 - `src/components/admin/`: the admin app
+- `src/app/developer/` and `src/components/developer/`: the developer page,
+  web only, its own sign-in (`src/lib/dev-auth.ts`), its API under
+  `/developer/api`. Chat behaviour it controls lives in `src/lib/chat-settings.ts`.
 - `public/widget.js`: the loader the sites include; `public/sw.js`: notifications
 
 ## Local testing

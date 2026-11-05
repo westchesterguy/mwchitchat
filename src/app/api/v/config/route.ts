@@ -1,3 +1,4 @@
+import { getChatSettings } from "@/lib/chat-settings";
 import { getSetting } from "@/lib/db";
 import { fieldsForSite } from "@/lib/fields";
 import { jsonError } from "@/lib/guard";
@@ -10,14 +11,16 @@ export async function GET(req: Request) {
   const site = getSite(new URL(req.url).searchParams.get("site"));
   if (!site) return jsonError(400, "bad_site");
 
-  const [online, fields] = await Promise.all([
+  const [online, fields, settings] = await Promise.all([
     getSetting<boolean>("agent_online", true),
     fieldsForSite(site.id),
+    getChatSettings(),
   ]);
 
   return Response.json(
     {
       online,
+      attachments: settings.visitorAttachments,
       phone: contact.phoneDisplay,
       phoneHref: `tel:${contact.phone}`,
       fields: fields.map(({ key, label, type, required, options }) => ({
