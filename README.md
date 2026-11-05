@@ -22,6 +22,11 @@ Michael from his own app. It replaces Tawk.to.
 - **Call and Email** buttons sit under the visitor's name in a chat once a
   phone number or email is known, from the pre-chat questions or typed in
   the chat.
+- **A greeting** draws visitors to the chat: once per visit, after 8 seconds
+  or half a page of scrolling, a ring spreads from the chat button and a card
+  with Michael's photo "types" a line matched to the page (a town page names
+  the town; the horse site and Away have their own). The lines are in
+  `src/app/api/v/teaser/route.ts`. Closing it keeps it away for a week.
 - **Notifications** reach his phone when a chat starts or a visitor writes,
   through Web Push. No Firebase project is needed.
 
