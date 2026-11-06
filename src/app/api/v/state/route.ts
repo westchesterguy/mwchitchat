@@ -1,6 +1,7 @@
-import { afterParam, messagesAfter } from "@/lib/chat";
+import { adminLink, afterParam, messagesAfter } from "@/lib/chat";
 import { getSetting } from "@/lib/db";
 import { jsonError, overLimit } from "@/lib/guard";
+import { rescueIfWaiting } from "@/lib/rescue";
 import { findVisitor, touchVisitor, visitorToken } from "@/lib/visitor";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,8 @@ export async function GET(req: Request) {
   }
 
   await touchVisitor(visitor.visitorId);
+  // Waiting too long for a reply? The rescue message arrives in this poll.
+  if (visitor.status === "open") await rescueIfWaiting(visitor.conversationId, adminLink(req, ""));
   return Response.json(
     {
       conversation: { id: visitor.conversationId, status: visitor.status },

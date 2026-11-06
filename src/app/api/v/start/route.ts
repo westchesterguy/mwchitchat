@@ -6,6 +6,7 @@ import { answerOf, fieldsForSite, validateAnswers } from "@/lib/fields";
 import { isSameOrigin, jsonError, overLimit } from "@/lib/guard";
 import { emailLead, leadEmailMode, leadRecipients } from "@/lib/mail";
 import { notifyAgent } from "@/lib/push";
+import { withEmailNote } from "@/lib/rescue";
 import { pageUrl, readJson, requestOrigin, str } from "@/lib/request";
 import { getSite } from "@/lib/sites";
 import { findVisitor, upsertVisitor, visitorToken } from "@/lib/visitor";
@@ -75,8 +76,10 @@ export async function POST(req: Request) {
   const link = adminLink(req, `/chatapp/c/${conversationId}`);
 
   if (isNew && !online) {
-    await addMessage(conversationId, "system", (await getChatSettings()).awayMessage);
-    await db()`update conversations set started_away = true where id = ${conversationId}`;
+    const away = await withEmailNote((await getChatSettings()).awayMessage, answerOf(answers, "email"));
+    await addMessage(conversationId, "system", away);
+    // The away message does the rescue's job, so no rescue until Michael replies.
+    await db()`update conversations set started_away = true, rescued_at = now() where id = ${conversationId}`;
   }
 
   // Every new lead is emailed to the addresses in Settings, or only those

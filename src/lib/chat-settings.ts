@@ -26,7 +26,20 @@ export interface ChatSettings {
   autoCloseDays: number;
   /** Show the round chat button (and greeting) on each site. */
   launcher: Record<SiteId, boolean>;
+  /** When Michael is online but a visitor has waited too long for a reply. */
+  rescue: {
+    enabled: boolean;
+    minutes: number;
+    message: string;
+    /** Notify and email Michael again when it steps in. */
+    alert: boolean;
+  };
+  /** Email Michael's replies to a visitor who has left the site. */
+  emailReplies: boolean;
 }
+
+/** Added to the away and rescue messages when the visitor's reply will reach them by email. */
+export const EMAIL_NOTE = "If you need to go, Michael's reply will also be sent to your email.";
 
 export const CHAT_DEFAULTS: ChatSettings = {
   greeting: {
@@ -44,9 +57,17 @@ export const CHAT_DEFAULTS: ChatSettings = {
   visitorFilesPerChat: 30,
   autoCloseDays: 0,
   launcher: { westchesterguy: true, horse: true },
+  rescue: {
+    enabled: true,
+    minutes: 3,
+    message: "Sorry for the wait. Michael is tied up at the moment, but he has your message and your details and will get back to you as soon as he can.",
+    alert: true,
+  },
+  emailReplies: true,
 };
 
-type Stored = Partial<Omit<ChatSettings, "greeting" | "launcher">> & {
+type Stored = Partial<Omit<ChatSettings, "greeting" | "launcher" | "rescue">> & {
+  rescue?: Partial<ChatSettings["rescue"]>;
   greeting?: Partial<Omit<ChatSettings["greeting"], "lines">> & { lines?: Partial<ChatSettings["greeting"]["lines"]> };
   launcher?: Partial<Record<SiteId, boolean>>;
 };
@@ -65,6 +86,8 @@ export async function getChatSettings(): Promise<ChatSettings> {
     visitorFilesPerChat: s.visitorFilesPerChat ?? d.visitorFilesPerChat,
     autoCloseDays: s.autoCloseDays ?? d.autoCloseDays,
     launcher: { ...d.launcher, ...s.launcher },
+    rescue: { ...d.rescue, ...s.rescue },
+    emailReplies: s.emailReplies ?? d.emailReplies,
   };
 }
 
@@ -96,6 +119,13 @@ export async function saveChatSettings(input: unknown): Promise<{ ok: true; sett
     visitorFilesPerChat: int(i.visitorFilesPerChat, 1, 200) ?? NaN,
     autoCloseDays: int(i.autoCloseDays, 0, 365) ?? NaN,
     launcher: Object.fromEntries(Object.keys(sites).map((id) => [id, i.launcher?.[id] !== false])) as Record<SiteId, boolean>,
+    rescue: {
+      enabled: i.rescue?.enabled === true,
+      minutes: int(i.rescue?.minutes, 1, 60) ?? NaN,
+      message: text(i.rescue?.message, 400) ?? "",
+      alert: i.rescue?.alert === true,
+    },
+    emailReplies: i.emailReplies === true,
   };
   if (Number.isNaN(next.greeting.delay)) return { ok: false, error: "The greeting delay must be between 2 and 120 seconds." };
   const blank = Object.entries(next.greeting.lines).find(([, v]) => !v);
@@ -104,6 +134,8 @@ export async function saveChatSettings(input: unknown): Promise<{ ok: true; sett
   if (!next.awayMessage) return { ok: false, error: "The away message needs text, up to 400 characters." };
   if (Number.isNaN(next.visitorFilesPerChat)) return { ok: false, error: "Files per chat must be between 1 and 200." };
   if (Number.isNaN(next.autoCloseDays)) return { ok: false, error: "Auto-close must be between 0 and 365 days." };
+  if (Number.isNaN(next.rescue.minutes)) return { ok: false, error: "The rescue wait must be between 1 and 60 minutes." };
+  if (!next.rescue.message) return { ok: false, error: "The rescue message needs text, up to 400 characters." };
   await setSetting("chat_settings", next);
   return { ok: true, settings: next };
 }

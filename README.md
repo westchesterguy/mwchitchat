@@ -28,6 +28,13 @@ Michael from his own app. It replaces Tawk.to.
   with Michael's photo "types" a line matched to the page (a town page names
   the town; the horse site and Away have their own). The lines are in
   `src/app/api/v/teaser/route.ts`. Closing it keeps it away for a week.
+- **The rescue.** While Michael is online, a visitor who waits 3 minutes
+  (set on the developer page) after their last message with no reply gets a
+  message saying he has their details and will follow up, and Michael gets a
+  second notification and email. Once per chat until he replies. It runs
+  when the visitor's browser checks in (no scheduler needed). If Michael
+  replies after a visitor has left the site, his messages are emailed to
+  them half a minute later, with a link that reopens the chat (`#mwchat`).
 - **Notifications** reach his phone when a chat starts or a visitor writes,
   through Web Push. No Firebase project is needed.
 
@@ -46,8 +53,9 @@ the chat app, nor the other way round.
   result), notifications, recorded errors, storage, version, which
   environment variables are set.
 - **Chat settings:** the greeting (on or off, delay, its four lines), the
-  away message, visitor attachments, auto-closing quiet chats, the chat
-  button per site.
+  away message, the rescue (on or off, wait, message, second alert),
+  emailing replies to visitors who left, visitor attachments, auto-closing
+  quiet chats, the chat button per site.
 - **Data:** a full JSON backup (no photos, no private keys), deleting one
   person's data, clearing old photos and PDFs.
 

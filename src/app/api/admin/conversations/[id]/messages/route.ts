@@ -1,9 +1,14 @@
+import { after } from "next/server";
 import { adminGuard } from "@/lib/admin-auth";
-import { addMessage, MESSAGE_MAX } from "@/lib/chat";
+import { addMessage, adminLink, MESSAGE_MAX } from "@/lib/chat";
 import { db } from "@/lib/db";
 import { readMessageForm, type Upload } from "@/lib/files";
 import { jsonError, UUID } from "@/lib/guard";
+import { emailRepliesIfGone } from "@/lib/rescue";
 import { readJson, str } from "@/lib/request";
+
+/** Room for the half-minute wait before a reply is emailed to a visitor who left. */
+export const maxDuration = 60;
 
 /**
  * Michael replies: JSON for text, or a form when a photo or PDF is
@@ -32,5 +37,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     where id = ${id} returning id`;
   if (!found) return jsonError(404, "not_found");
 
-  return Response.json({ message: await addMessage(id, "agent", text, file) });
+  const message = await addMessage(id, "agent", text, file);
+  const base = adminLink(req, "");
+  after(() => emailRepliesIfGone(id, message.id, base));
+  return Response.json({ message });
 }

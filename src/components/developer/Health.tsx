@@ -52,6 +52,13 @@ function Status({ level, title, value, note }: { level: Level; title: string; va
   );
 }
 
+const KINDS: Record<string, string> = {
+  lead: "Lead",
+  test: "Test",
+  rescue: "Still waiting",
+  reply: "Reply to visitor",
+};
+
 const TABLE_NAMES: Record<string, string> = {
   attachments: "Photos and PDFs",
   messages: "Messages",
@@ -202,7 +209,8 @@ export function Health() {
           <div className="px-4 pb-3 pt-4 sm:px-5">
             <h2 className={h2}>Email log</h2>
             <p className={sub}>
-              The last 15 emails, from {e.from.replace(/^.*<(.+)>$/, "$1")} to {e.recipients.join(", ") || "no one"}.
+              The last 15 emails, sent from {e.from.replace(/^.*<(.+)>$/, "$1")}. Lead emails go to{" "}
+              {e.recipients.join(", ") || "no one yet"}.
             </p>
           </div>
           <div className="scroll-thin overflow-x-auto">
@@ -211,6 +219,7 @@ export function Health() {
                 <tr>
                   <th className="px-4 py-2 font-semibold sm:pl-5">When</th>
                   <th className="px-3 py-2 font-semibold">Type</th>
+                  <th className="px-3 py-2 font-semibold">To</th>
                   <th className="px-3 py-2 font-semibold">Subject</th>
                   <th className="px-4 py-2 font-semibold sm:pr-5">Result</th>
                 </tr>
@@ -219,7 +228,8 @@ export function Health() {
                 {e.recent.map((m) => (
                   <tr key={m.id} className="border-b border-line align-top last:border-0">
                     <td className="whitespace-nowrap px-4 py-2.5 text-muted sm:pl-5">{when(m.created_at)}</td>
-                    <td className="px-3 py-2.5 text-ink-soft">{m.kind === "lead" ? "Lead" : "Test"}</td>
+                    <td className="px-3 py-2.5 text-ink-soft">{KINDS[m.kind] ?? m.kind}</td>
+                    <td className="max-w-[220px] break-words px-3 py-2.5 text-ink-soft">{m.recipients.join(", ")}</td>
                     <td className="px-3 py-2.5 text-ink-soft">{m.subject}</td>
                     <td className="px-4 py-2.5 sm:pr-5">
                       {m.ok ? (
@@ -236,7 +246,7 @@ export function Health() {
                 ))}
                 {e.recent.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-5 py-8 text-center text-muted">
+                    <td colSpan={5} className="px-5 py-8 text-center text-muted">
                       No emails yet. Use Send a test email in the chat app&rsquo;s Settings.
                     </td>
                   </tr>

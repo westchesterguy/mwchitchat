@@ -36,11 +36,13 @@ export async function leadEmailMode(): Promise<LeadEmailMode> {
   return (await getSetting<LeadEmailMode>("lead_email_mode", "every")) === "away" ? "away" : "every";
 }
 
+type Kind = "lead" | "test" | "rescue" | "reply";
+
 type Sent = { ok: true } | { ok: false; error: string };
 
 /** Every send is recorded for the developer page, sent or not. */
 async function record(
-  meta: { kind: "lead" | "test"; conversationId?: string | null },
+  meta: { kind: Kind; conversationId?: string | null },
   to: string[],
   subject: string,
   result: Sent,
@@ -60,7 +62,7 @@ async function record(
  * result is always read; a lead email that silently fails is a lost lead.
  */
 async function send(
-  meta: { kind: "lead" | "test"; conversationId?: string | null },
+  meta: { kind: Kind; conversationId?: string | null },
   message: { to: string[]; subject: string; text: string; html: string; replyTo?: string | null },
 ): Promise<Sent> {
   return record(meta, message.to, message.subject, await deliver(message));
@@ -99,19 +101,28 @@ function shortLabel(a: Answer): string {
   return a.label.length > 48 ? `${a.label.slice(0, 46)}…` : a.label;
 }
 
-function layout(title: string, intro: string, body: string, button?: { href: string; label: string }): string {
+function layout(
+  title: string,
+  intro: string,
+  body: string,
+  button?: { href: string; label: string },
+  frame: { label: string; footer: string } = {
+    label: "MW Chat",
+    footer: "Sent by MW Chat for westchesterguy.com and westchesterhorseproperties.com",
+  },
+): string {
   return `<!doctype html><html><body style="margin:0;background:#f3f2ee;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#17181a">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f2ee;padding:24px 12px"><tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:14px;overflow:hidden">
 <tr><td style="background:#002349;padding:20px 24px;color:#ffffff">
-<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.7">MW Chat</div>
+<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.7">${esc(frame.label)}</div>
 <div style="font-size:20px;font-weight:600;margin-top:4px">${title}</div>
 <div style="font-size:14px;opacity:.8;margin-top:4px">${intro}</div>
 </td></tr>
 <tr><td style="padding:20px 24px">${body}
 ${button ? `<a href="${esc(button.href)}" style="display:inline-block;margin-top:20px;background:#002349;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:999px">${esc(button.label)}</a>` : ""}
 </td></tr></table>
-<div style="font-size:12px;color:#6b6a66;margin-top:14px">Sent by MW Chat for westchesterguy.com and westchesterhorseproperties.com</div>
+<div style="font-size:12px;color:#6b6a66;margin-top:14px;max-width:520px;line-height:1.5">${esc(frame.footer)}</div>
 </td></tr></table></body></html>`;
 }
 
@@ -196,4 +207,95 @@ export async function emailTest(to: string[]): Promise<Sent> {
     text,
     html: layout("Test email", "Lead emails are working", `<p style="font-size:15px;line-height:1.5;margin:0">${esc(text)}</p>`),
   });
+}
+
+/** A visitor has waited the set time with no reply while Michael is online. */
+export async function emailStillWaiting(p: {
+  to: string[];
+  conversationId: string;
+  domain: string;
+  name: string;
+  minutes: number;
+  lastMessage: string;
+  adminUrl: string;
+}): Promise<Sent> {
+  const wait = `${p.minutes} ${p.minutes === 1 ? "minute" : "minutes"}`;
+  const text = `${p.name} has waited ${wait} for a reply on ${p.domain}. They were told you have their message and will follow up.
+
+LAST MESSAGE
+${p.lastMessage}
+
+Reply in MW Chat: ${p.adminUrl}
+`;
+  const html = layout(
+    `${esc(p.name)} is waiting`,
+    esc(`${p.domain} · no reply for ${wait}`),
+    `<p style="font-size:15px;line-height:1.5;margin:0">They were told you have their message and will follow up.</p>
+${heading("Last message")}<div style="font-size:15px;line-height:1.5;background:#f3f2ee;border-radius:12px;padding:12px 14px;white-space:pre-wrap">${esc(p.lastMessage)}</div>`,
+    { href: p.adminUrl, label: "Reply in MW Chat" },
+  );
+  return send(
+    { kind: "rescue", conversationId: p.conversationId },
+    { to: p.to, subject: `[Chat] ${p.name} is still waiting on ${p.domain}`, text, html },
+  );
+}
+
+/**
+ * Michael's replies, sent to a visitor who left before they arrived. Their
+ * email reply goes to Michael's inbox; the button reopens the chat on the
+ * site (in the same browser).
+ */
+export async function emailVisitorReply(p: {
+  to: string;
+  conversationId: string;
+  name: string | null;
+  domain: string;
+  messages: { body: string; file: { name: string; url: string; type: string } | null }[];
+  continueUrl: string;
+  replyTo: string | null;
+}): Promise<Sent> {
+  const first = p.name?.trim().split(/\s+/)[0];
+  const hello = first ? `Hi ${first},` : "Hello,";
+  const lines = p.messages.map((m) =>
+    [m.body, m.file ? `${m.file.type === "application/pdf" ? "PDF" : "Photo"}: ${m.file.name} (${m.file.url})` : ""]
+      .filter(Boolean)
+      .join("\n"),
+  );
+  const text = `${hello}
+
+Michael Winter replied to your chat on ${p.domain}:
+
+${lines.join("\n\n")}
+
+Continue the chat: ${p.continueUrl}
+Or reply to this email.
+
+You're receiving this because you started a chat on ${p.domain} and left your email address.
+`;
+  const bubbles = p.messages
+    .map(
+      (m) =>
+        `<div style="font-size:15px;line-height:1.5;background:#f3f2ee;border-radius:12px;padding:12px 14px;margin-top:8px;white-space:pre-wrap">${esc(m.body)}${
+          m.file
+            ? `${m.body ? "<br>" : ""}<a href="${esc(m.file.url)}" style="color:#002349;font-weight:600">${m.file.type === "application/pdf" ? "PDF" : "Photo"}: ${esc(m.file.name)}</a>`
+            : ""
+        }</div>`,
+    )
+    .join("");
+  const html = layout(
+    "A reply from Michael Winter",
+    esc(p.domain),
+    `<p style="font-size:15px;line-height:1.5;margin:0">${esc(hello)}</p>
+<p style="font-size:15px;line-height:1.5;margin:10px 0 0">Michael replied to your chat:</p>${bubbles}
+<p style="font-size:14px;line-height:1.5;margin:16px 0 0;color:#6b6a66">Continue the chat on the site, or simply reply to this email.</p>`,
+    { href: p.continueUrl, label: "Continue the chat" },
+    {
+      label: "Michael Winter",
+      footer: `You're receiving this because you started a chat on ${p.domain} and left your email address.`,
+    },
+  );
+  return send(
+    { kind: "reply", conversationId: p.conversationId },
+    { to: [p.to], subject: "Michael Winter replied to your message", text, html, replyTo: p.replyTo },
+  );
 }

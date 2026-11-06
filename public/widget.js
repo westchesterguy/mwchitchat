@@ -136,6 +136,8 @@
   }
 
   function layout() {
+    // The button first: it exists before the chat window is ever made.
+    if (launcher) launcher.style.display = !launcherAllowed || (isOpen && mobile()) ? "none" : "flex";
     if (!panel) return;
     var s = panel.style;
     if (mobile()) {
@@ -149,7 +151,6 @@
       s.height = "min(640px, calc(100vh - 128px))";
       s.borderRadius = "18px";
     }
-    if (launcher) launcher.style.display = !launcherAllowed || (isOpen && mobile()) ? "none" : "flex";
     // A full-screen chat on a phone should not let the page scroll behind it.
     var lock = isOpen && mobile();
     if (lock && savedOverflow === null) {
@@ -525,6 +526,11 @@
       ping();
     }
     if (get("sessionStorage", "mwchat:open") === "1") open();
+    // "Continue the chat" in an email of Michael's reply links to the page with #mwchat.
+    if (location.hash === "#mwchat") {
+      open();
+      try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+    }
 
     var lastUrl = location.href;
     setInterval(function () {

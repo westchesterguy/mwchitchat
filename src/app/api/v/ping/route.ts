@@ -1,7 +1,10 @@
+import { after } from "next/server";
+import { adminLink } from "@/lib/chat";
 import { db } from "@/lib/db";
 import { allowedOrigin, corsHeaders } from "@/lib/cors";
 import { jsonError, overLimit } from "@/lib/guard";
 import { pageUrl, readJson, requestOrigin, str } from "@/lib/request";
+import { rescueIfWaiting } from "@/lib/rescue";
 import { getSite } from "@/lib/sites";
 import { hashToken, visitorToken } from "@/lib/visitor";
 
@@ -36,8 +39,16 @@ export async function POST(req: Request) {
     returning (
       select status from conversations
       where visitor_id = visitors.id order by created_at desc limit 1
-    ) as status`;
+    ) as status, (
+      select id from conversations
+      where visitor_id = visitors.id order by created_at desc limit 1
+    ) as conversation_id`;
 
+  // Browsing the site with the chat closed, still waiting for a reply.
+  if (row?.status === "open") {
+    const base = adminLink(req, "");
+    after(() => rescueIfWaiting(row.conversation_id as string, base));
+  }
   return Response.json({ active: row?.status === "open" }, { headers });
 }
 

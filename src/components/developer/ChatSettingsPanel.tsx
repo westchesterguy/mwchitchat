@@ -13,7 +13,11 @@ interface Settings {
   visitorFilesPerChat: number;
   autoCloseDays: number;
   launcher: Record<string, boolean>;
+  rescue: { enabled: boolean; minutes: number; message: string; alert: boolean };
+  emailReplies: boolean;
 }
+
+const EMAIL_NOTE = "If you need to go, Michael's reply will also be sent to your email.";
 
 const LINES: { key: keyof Settings["greeting"]["lines"]; label: string; hint: string }[] = [
   { key: "general", label: "Most pages", hint: "On westchesterguy.com pages other than a town page." },
@@ -185,6 +189,71 @@ export function ChatSettingsPanel() {
           onChange={(e) => set({ awayMessage: e.target.value })}
           className={`${input} mt-3 h-auto w-full resize-y py-2 leading-snug`}
         />
+      </section>
+
+      <section className={card}>
+        <div className="flex items-start gap-4">
+          <div className="flex-1">
+            <h2 className={h2}>Rescue when you can&rsquo;t answer</h2>
+            <p className={sub}>
+              While you&rsquo;re online, if a visitor waits this long after their last message with no reply, this message is posted
+              in the chat. Once per chat until you reply. Chats that start while you&rsquo;re away get the away message instead.
+            </p>
+          </div>
+          <Switch
+            checked={settings.rescue.enabled}
+            onChange={(v) => set({ rescue: { ...settings.rescue, enabled: v } })}
+            label="Rescue unanswered chats"
+          />
+        </div>
+        <div className={`mt-3 space-y-3 ${settings.rescue.enabled ? "" : "opacity-50"}`}>
+          <label className="flex flex-wrap items-center gap-3 text-[14px] text-ink">
+            Step in after
+            <input
+              type="number"
+              min={1}
+              max={60}
+              value={settings.rescue.minutes}
+              onChange={(e) => set({ rescue: { ...settings.rescue, minutes: Number(e.target.value) } })}
+              className={`${input} w-20 text-center`}
+            />
+            minutes without a reply.
+          </label>
+          <label className="block">
+            <span className="flex items-baseline justify-between gap-3">
+              <span className="text-[13px] font-medium text-ink">Rescue message</span>
+              <span className="text-[11px] tabular-nums text-faint">{settings.rescue.message.length}/400</span>
+            </span>
+            <textarea
+              rows={3}
+              maxLength={400}
+              value={settings.rescue.message}
+              onChange={(e) => set({ rescue: { ...settings.rescue, message: e.target.value } })}
+              className={`${input} mt-1 h-auto w-full resize-y py-2 leading-snug`}
+            />
+          </label>
+          <Row title="Alert me again when it steps in" note="A second notification on your phone, and an email to your lead addresses.">
+            <Switch
+              checked={settings.rescue.alert}
+              onChange={(v) => set({ rescue: { ...settings.rescue, alert: v } })}
+              label="Alert me again when it steps in"
+            />
+          </Row>
+        </div>
+        <div className="mt-1 border-t border-line pt-1">
+          <Row
+            title="Email my replies to visitors who have left"
+            note={
+              <>
+                If a visitor has left the site when you reply, what you wrote is emailed to them half a minute later, with a link
+                back to the chat. Their email replies come to your first lead address. When this is on and the visitor gave an
+                email, the away and rescue messages end with: &ldquo;{EMAIL_NOTE}&rdquo;
+              </>
+            }
+          >
+            <Switch checked={settings.emailReplies} onChange={(v) => set({ emailReplies: v })} label="Email my replies to visitors who have left" />
+          </Row>
+        </div>
       </section>
 
       <section className={card}>
