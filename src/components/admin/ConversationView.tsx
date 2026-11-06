@@ -266,6 +266,14 @@ export function ConversationView({ id }: { id: string }) {
           </div>
         )}
 
+        {conversation?.status === "closed" ? (
+          <ClosedPanel
+            email={reach.email}
+            phone={reach.phone}
+            site={conversation.site}
+            onReopen={() => setStatus("open")}
+          />
+        ) : (
         <Composer
           onSend={send}
           placeholder="Reply"
@@ -286,8 +294,8 @@ export function ConversationView({ id }: { id: string }) {
               </span>
             ) : undefined
           }
-          note={conversation?.status === "closed" ? "This chat is closed. Replying reopens it." : undefined}
         />
+        )}
       </section>
 
       {pane && conversation && visitor && (
@@ -302,6 +310,68 @@ export function ConversationView({ id }: { id: string }) {
       <Sheet open={sheet} onClose={() => setSheet(false)} title="Details">
         {conversation && visitor && <Details conversation={conversation} visitor={visitor} reach={reach} />}
       </Sheet>
+    </div>
+  );
+}
+
+/**
+ * In place of the reply bar on a closed chat: the visitor has gone, so the
+ * way to reach them is email, or else a call or text, or there is none.
+ */
+function ClosedPanel({
+  email,
+  phone,
+  site,
+  onReopen,
+}: {
+  email: string | null;
+  phone: string | null;
+  site: string;
+  onReopen: () => void;
+}) {
+  const subject = encodeURIComponent(`Following up on your chat on ${siteName(site)}`);
+  const digits = phone?.replace(/[^+\d]/g, "") ?? "";
+  const main =
+    "press inline-flex h-11 items-center justify-center gap-2 rounded-full bg-navy px-5 text-[14px] font-semibold text-white shadow-[0_2px_8px_rgba(0,35,73,0.25)]";
+  const other =
+    "press inline-flex h-11 items-center justify-center gap-2 rounded-full border border-line bg-surface px-5 text-[14px] font-medium text-ink-soft";
+  return (
+    <div className="anim-rise border-t border-line bg-paper px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4">
+      <p className="text-center text-[14px] font-semibold text-ink">This chat is closed</p>
+      <p className="mx-auto mt-1 max-w-sm text-center text-[13px] text-muted">
+        {email
+          ? "Replies here won't reach them. Follow up by email instead."
+          : phone
+            ? "Replies here won't reach them, and they left no email. Call or text them instead."
+            : "Replies here won't reach them, and this lead left no email or phone number, so there is no way to follow up outside the chat."}
+      </p>
+      {(email || phone) && (
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
+          {email && (
+            <a href={`mailto:${email}?subject=${subject}`} className={main}>
+              <MailIcon className="h-[18px] w-[18px]" /> Reply by email
+            </a>
+          )}
+          {phone && (
+            <>
+              <a href={`tel:${digits}`} className={email ? other : main}>
+                <PhoneIcon className="h-[18px] w-[18px]" /> Call
+              </a>
+              <a href={`sms:${digits}`} className={other}>
+                <ChatIcon className="h-[18px] w-[18px]" /> Text
+              </a>
+            </>
+          )}
+        </div>
+      )}
+      {(email || phone) && (
+        <p className="mt-2 break-all text-center text-[12px] text-faint">{[email, phone].filter(Boolean).join(" · ")}</p>
+      )}
+      <p className="mt-3 text-center">
+        <button type="button" onClick={onReopen} className="text-[12px] font-medium text-accent hover:underline">
+          Reopen the chat instead
+        </button>
+      </p>
     </div>
   );
 }

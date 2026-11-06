@@ -42,30 +42,27 @@ function Skeleton() {
   );
 }
 
-/** The chat list: search, open/closed, and one row per conversation. */
+/** The chat list: search, and one row per conversation, open and closed together. */
 export function Inbox({ activeId }: { activeId: string | null }) {
-  const [status, setStatus] = useState<"open" | "closed">("open");
   const [rows, setRows] = useState<Row[] | null>(null);
   const [query, setQuery] = useState("");
   const active = useRef(activeId);
   active.current = activeId;
   const heard = useRef<number | null>(null);
 
-  useEffect(() => {
-    setRows(null);
-    heard.current = null;
-    return poll(async () => {
-      const { ok, data } = await adminApi<{ conversations: Row[] }>(`/api/admin/conversations?status=${status}`);
-      if (!ok) return;
-      setRows(data.conversations);
-      // A new chat or a new message in a chat you are not looking at.
-      if (status === "open") {
+  useEffect(
+    () =>
+      poll(async () => {
+        const { ok, data } = await adminApi<{ conversations: Row[] }>("/api/admin/conversations");
+        if (!ok) return;
+        setRows(data.conversations);
+        // A new chat or a new message in a chat you are not looking at.
         const total = data.conversations.reduce((n, r) => n + (r.id === active.current ? 0 : r.unread), 0);
         if (heard.current !== null && total > heard.current) chime();
         heard.current = total;
-      }
-    }, 4000);
-  }, [status]);
+      }, 4000),
+    [],
+  );
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -75,11 +72,9 @@ export function Inbox({ activeId }: { activeId: string | null }) {
     );
   }, [rows, query]);
 
-  const openUnread = status === "open" && rows ? rows.reduce((n, r) => n + (r.id === activeId ? 0 : r.unread), 0) : 0;
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="space-y-3 border-b border-line px-4 pb-3 pt-3">
+      <div className="border-b border-line px-4 pb-3 pt-3">
         <label className="relative block">
           <span className="sr-only">Search chats</span>
           <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-faint" />
@@ -91,25 +86,6 @@ export function Inbox({ activeId }: { activeId: string | null }) {
             className="h-10 w-full rounded-xl bg-canvas pl-10 pr-3 text-[15px] outline-none placeholder:text-faint focus:bg-surface focus:shadow-[0_0_0_2px_rgba(0,35,73,0.18)]"
           />
         </label>
-        <div role="tablist" className="grid grid-cols-2 rounded-xl bg-canvas p-1">
-          {(["open", "closed"] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              role="tab"
-              aria-selected={status === s}
-              onClick={() => setStatus(s)}
-              className={`press flex items-center justify-center gap-1.5 rounded-[9px] py-1.5 text-[13px] font-medium ${
-                status === s ? "bg-surface text-ink shadow-[0_1px_3px_rgba(0,0,0,0.1)]" : "text-muted"
-              }`}
-            >
-              {s === "open" ? "Open" : "Closed"}
-              {s === "open" && openUnread > 0 && (
-                <span className="rounded-full bg-navy px-1.5 text-[11px] leading-[18px] text-white">{openUnread}</span>
-              )}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="scroll-thin min-h-0 flex-1 overflow-y-auto">
@@ -120,14 +96,10 @@ export function Inbox({ activeId }: { activeId: string | null }) {
               <ChatIcon className="h-7 w-7" />
             </span>
             <p className="mt-4 text-[15px] font-medium">
-              {query ? "No chats match" : status === "open" ? "No open chats" : "No closed chats"}
+              {query ? "No chats match" : "No chats yet"}
             </p>
             <p className="mt-1 text-[13px] text-muted">
-              {query
-                ? "Try a name, email or town."
-                : status === "open"
-                  ? "When a visitor starts a chat on either site, it appears here."
-                  : "Chats you or the visitor end are kept here."}
+              {query ? "Try a name, email or town." : "When a visitor starts a chat on either site, it appears here."}
             </p>
           </div>
         )}
@@ -167,6 +139,13 @@ export function Inbox({ activeId }: { activeId: string | null }) {
                       )}
                     </div>
                     <div className="mt-1 flex items-center gap-1.5 text-[11px] text-faint">
+                      <span
+                        className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-[0.06em] ${
+                          r.status === "open" ? "bg-ok/12 text-ok" : "bg-canvas text-muted"
+                        }`}
+                      >
+                        {r.status === "open" ? "OPEN" : "CLOSED"}
+                      </span>
                       <span className="shrink-0 whitespace-nowrap rounded-md bg-canvas px-1.5 py-0.5 font-medium text-ink-soft">{siteShort(r.site)}</span>
                       {r.online ? (
                         <span className="truncate text-ok">On {r.current_title || pagePath(r.current_url)}</span>

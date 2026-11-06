@@ -10,6 +10,9 @@ Michael from his own app. It replaces Tawk.to.
   from the browser and wrapped as an Android APK. It shows every chat with the
   site it started on, the page the visitor is on right now, their country, city
   and IP address, and their answers. He edits the questionnaire in Settings.
+  Open and closed chats share one list, each marked OPEN or CLOSED. A closed
+  chat can't be replied to in the app; it offers email, or a call or text
+  when only a phone number was left, or says no contact details were left.
 - **Lead emails.** Each new chat is emailed to the addresses entered in
   Settings, Lead emails: the answers, first message, the page it started on,
   location and IP address, with the visitor as Reply-To. Every lead, or only

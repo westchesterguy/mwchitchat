@@ -17,13 +17,14 @@ async function autoClose() {
 
 export const dynamic = "force-dynamic";
 
-/** The inbox: open chats (or closed ones), newest activity first. */
+/** The inbox: every chat, open and closed together, newest activity first (?status= narrows it). */
 export async function GET(req: Request) {
   const denied = await adminGuard(req);
   if (denied) return denied;
 
   await autoClose();
-  const status = new URL(req.url).searchParams.get("status") === "closed" ? "closed" : "open";
+  const asked = new URL(req.url).searchParams.get("status");
+  const status = asked === "open" || asked === "closed" ? asked : null;
   const rows = await db()`
     select
       c.id, c.site, c.status, c.created_at, c.last_message_at,
@@ -51,7 +52,7 @@ export async function GET(req: Request) {
       where m.conversation_id = c.id and m.sender <> 'system'
       order by m.id desc limit 1
     ) lm on true
-    where c.status = ${status}
+    where (${status}::text is null or c.status = ${status})
     order by c.last_message_at desc
     limit 200`;
 
