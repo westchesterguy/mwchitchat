@@ -9,21 +9,23 @@ import { ChatSettingsPanel } from "./ChatSettingsPanel";
 import { DataTools } from "./DataTools";
 import { Health } from "./Health";
 import { Leads } from "./Leads";
+import { WidgetPanel } from "./WidgetPanel";
 
-export type Tab = "leads" | "activity" | "health" | "settings" | "ai" | "data";
+export type Tab = "leads" | "activity" | "health" | "settings" | "widget" | "ai" | "data";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "leads", label: "Leads" },
   { id: "activity", label: "Activity" },
   { id: "health", label: "Health" },
   { id: "settings", label: "Chat settings" },
+  { id: "widget", label: "Button & greeting" },
   { id: "ai", label: "AI integration" },
   { id: "data", label: "Data" },
 ];
 
 /**
- * The developer page: leads, activity, health, the chat's behaviour and
- * data tools, for a web browser. Kept apart from the chat app at /chatapp.
+ * The developer page: leads, activity, health, the chat's behaviour, the
+ * chat button and greeting, and data tools, for a web browser. Kept apart from the chat app at /chatapp.
  */
 export function DevApp({ initialTab }: { initialTab: Tab }) {
   const [tab, setTab] = useState<Tab>(initialTab);
@@ -96,6 +98,7 @@ export function DevApp({ initialTab }: { initialTab: Tab }) {
         {tab === "activity" && <Activity />}
         {tab === "health" && <Health />}
         {tab === "settings" && <ChatSettingsPanel />}
+        {tab === "widget" && <WidgetPanel />}
         {tab === "ai" && <AiPanel />}
         {tab === "data" && <DataTools />}
       </main>

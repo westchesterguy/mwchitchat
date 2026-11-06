@@ -47,8 +47,13 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // The developer page's preview of the chat button: framed by that page only.
+        source: "/developer/preview",
+        headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'self'" }],
+      },
+      {
         // Everything else, the admin app above all, is never framed.
-        source: "/((?!embed$).*)",
+        source: "/((?!embed$|developer/preview$).*)",
         headers: [{ key: "Content-Security-Policy", value: "frame-ancestors 'none'" }],
       },
       {

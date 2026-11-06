@@ -12,11 +12,16 @@
  * chat under way, reports the page they are on so Michael can see it.
  *
  * Once per visit, after a few seconds (8 unless changed on the developer
- * page) or half a page of scrolling, a ring spreads from the button and a
- * short greeting from Michael slides out beside it. Closing it keeps it
- * away for a week. The developer page can also hide the button on a site.
+ * page) or half a page of scrolling, rings spread from the button and a
+ * short greeting from Michael slides out beside it. Each visit gets a line
+ * this visitor has not seen yet, until all have been seen. Closing it keeps
+ * it away for a week. The developer page sets the lines, the timing, and
+ * the button's and the greeting's look, and can hide the button on a site.
  * Everything it adds to the page is prefixed mwchat- so it cannot collide
  * with the site's own styles.
+ *
+ * data-preview="1", on the chat app's own preview page only, takes settings
+ * from the developer page around it instead and never opens a real chat.
  */
 (function () {
   "use strict";
@@ -28,6 +33,7 @@
   var base = new URL(script.src).origin;
   var site = script.getAttribute("data-site") || "westchesterguy";
   var withLauncher = script.getAttribute("data-launcher") !== "false";
+  var preview = script.getAttribute("data-preview") === "1" && location.origin === base;
   var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   var CSS =
@@ -39,7 +45,14 @@
     ".mwchat-launcher:hover{transform:translateY(-2px) scale(1.04);box-shadow:0 12px 30px rgba(0,35,73,.38),0 2px 6px rgba(0,0,0,.12)}" +
     ".mwchat-launcher:active{transform:scale(.94)}" +
     ".mwchat-launcher:focus-visible{outline:3px solid #fff;outline-offset:-6px}" +
-    ".mwchat-launcher svg{position:absolute;transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .2s ease}" +
+    ".mwchat-launcher .mwchat-i{position:absolute;transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .2s ease}" +
+    ".mwchat-launcher svg.mwchat-i-chat{width:47%;height:47%}.mwchat-launcher svg.mwchat-i-close{width:43%;height:43%}" +
+    ".mwchat-launcher img.mwchat-i-photo{inset:0;width:100%;height:100%;max-width:none;border-radius:50%;object-fit:cover}" +
+    ".mwchat-launcher img.mwchat-i-logo{width:62%;height:62%;max-width:none;object-fit:contain}" +
+    // The MW mark: the top of the lockup, so MICHAEL WINTER beneath it never shows.
+    ".mwchat-mk{display:block;overflow:hidden;aspect-ratio:590/653}" +
+    ".mwchat-mk img{display:block;width:100%;height:auto;max-width:none;margin:0}" +
+    ".mwchat-launcher .mwchat-mk{width:42%}" +
     ".mwchat-launcher .mwchat-i-close{opacity:0;transform:rotate(-90deg) scale(.6)}" +
     ".mwchat-launcher.mwchat-open .mwchat-i-chat{opacity:0;transform:rotate(90deg) scale(.6)}" +
     ".mwchat-launcher.mwchat-open .mwchat-i-close{opacity:1;transform:none}" +
@@ -74,7 +87,7 @@
     "text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent}" +
     ".mwchat-teaser-body:focus-visible{outline:2px solid #002349;outline-offset:2px}" +
     ".mwchat-teaser-photo{position:relative;flex:none;width:44px;height:44px}" +
-    ".mwchat-teaser-photo img,.mwchat-teaser-photo b{display:flex;width:44px;height:44px;border-radius:50%;object-fit:cover;" +
+    ".mwchat-teaser-photo>img,.mwchat-teaser-photo>b{display:flex;width:44px;height:44px;border-radius:50%;object-fit:cover;" +
     "background:#002349;color:#fff;font-size:15px;font-weight:600;align-items:center;justify-content:center}" +
     ".mwchat-teaser-dot{position:absolute;right:0;bottom:1px;width:12px;height:12px;border-radius:50%;background:#23864f;border:2px solid #fff}" +
     ".mwchat-teaser-copy{display:block;min-width:0;padding-top:1px}" +
@@ -89,6 +102,35 @@
     ".mwchat-teaser-close{position:absolute;z-index:2;top:8px;right:8px;width:28px;height:28px;margin:0;padding:0;border:0;" +
     "border-radius:50%;background:transparent;color:#8f8c84;cursor:pointer;display:flex;align-items:center;justify-content:center}" +
     ".mwchat-teaser-close:hover{background:#f1efea;color:#17181a}" +
+    ".mwchat-teaser-photo .mwchat-mk{width:52%}" +
+    // Sizes; medium is the rules above.
+    ".mwchat-s-small .mwchat-teaser-body{gap:10px;padding:12px 38px 13px 12px}" +
+    ".mwchat-s-small .mwchat-teaser-photo,.mwchat-s-small .mwchat-teaser-photo>img,.mwchat-s-small .mwchat-teaser-photo>b{width:38px;height:38px}" +
+    ".mwchat-s-small .mwchat-teaser-name{font-size:12.5px}.mwchat-s-small .mwchat-teaser-text{font-size:13.5px}" +
+    ".mwchat-s-large .mwchat-teaser-body{gap:14px;padding:16px 42px 17px 16px}" +
+    ".mwchat-s-large .mwchat-teaser-photo,.mwchat-s-large .mwchat-teaser-photo>img,.mwchat-s-large .mwchat-teaser-photo>b{width:52px;height:52px}" +
+    ".mwchat-s-large .mwchat-teaser-name{font-size:14px}.mwchat-s-large .mwchat-teaser-text{font-size:15.5px}" +
+    // Compact: a pill that fits its line, a small photo, no name.
+    ".mwchat-compact,.mwchat-compact .mwchat-teaser-body{border-radius:28px}" +
+    ".mwchat-compact .mwchat-teaser-body{align-items:center;gap:10px;padding:8px 40px 8px 8px}" +
+    ".mwchat-compact .mwchat-teaser-photo,.mwchat-compact .mwchat-teaser-photo>img,.mwchat-compact .mwchat-teaser-photo>b{width:36px;height:36px}" +
+    ".mwchat-compact.mwchat-s-small .mwchat-teaser-photo,.mwchat-compact.mwchat-s-small .mwchat-teaser-photo>img,.mwchat-compact.mwchat-s-small .mwchat-teaser-photo>b{width:30px;height:30px}" +
+    ".mwchat-compact.mwchat-s-large .mwchat-teaser-photo,.mwchat-compact.mwchat-s-large .mwchat-teaser-photo>img,.mwchat-compact.mwchat-s-large .mwchat-teaser-photo>b{width:42px;height:42px}" +
+    ".mwchat-compact .mwchat-teaser-dot{width:10px;height:10px}" +
+    ".mwchat-compact .mwchat-teaser-name,.mwchat-bubble .mwchat-teaser-name{display:none}" +
+    ".mwchat-compact .mwchat-teaser-copy,.mwchat-bubble .mwchat-teaser-copy{padding-top:0}" +
+    ".mwchat-compact .mwchat-teaser-text,.mwchat-bubble .mwchat-teaser-text,.mwchat-compact .mwchat-typing,.mwchat-bubble .mwchat-typing{margin-top:0}" +
+    ".mwchat-compact .mwchat-teaser-close{top:50%;margin-top:-14px}" +
+    // Bubble: a chat bubble with the line alone, its corner toward the button.
+    ".mwchat-bubble .mwchat-teaser-body{padding:12px 40px 12px 16px}" +
+    ".mwchat-bubble:after{display:none}" +
+    // Dark: the card in the button's color (Sotheby's blue on a light button).
+    ".mwchat-dark,.mwchat-dark .mwchat-teaser-text{color:#fff}" +
+    ".mwchat-dark .mwchat-teaser-name{color:rgba(255,255,255,.72)}" +
+    ".mwchat-dark .mwchat-typing{background:rgba(255,255,255,.14)}.mwchat-dark .mwchat-typing i{background:rgba(255,255,255,.75)}" +
+    ".mwchat-dark .mwchat-teaser-close{color:rgba(255,255,255,.7)}.mwchat-dark .mwchat-teaser-close:hover{background:rgba(255,255,255,.12);color:#fff}" +
+    ".mwchat-dark .mwchat-teaser-body:focus-visible{outline-color:#fff}" +
+    ".mwchat-dark .mwchat-teaser-photo>b{box-shadow:0 0 0 1px rgba(255,255,255,.28)}" +
     "@media (prefers-reduced-motion:reduce){.mwchat-launcher,.mwchat-launcher svg,.mwchat-panel,.mwchat-teaser{transition:none;animation:none}" +
     ".mwchat-badge,.mwchat-ring,.mwchat-typing i,.mwchat-teaser-text.mwchat-in{animation:none}}";
 
@@ -129,7 +171,37 @@
   var teaserHide = null;
   var chatOpened = false;
   var greeting = null;
+  var look = null;
   var launcherAllowed = false;
+  var teaseRun = 0;
+  var shownLine = null;
+  var previewLine = null;
+
+  /** Until the chat app answers: the look the sites had before it could be changed. */
+  var DEFAULT_LOOK = {
+    color: "#002349",
+    iconColor: "#ffffff",
+    light: false,
+    dark: "#002349",
+    icon: "chat",
+    iconUrl: null,
+    mark: null,
+    size: 60,
+    side: "right",
+    x: 20,
+    y: 20,
+    card: { form: "card", size: "medium", style: "light", photo: "headshot", photoUrl: null },
+  };
+  var DEFAULT_RIPPLE = { rings: 2, speed: 1.7, cardAfter: 0.9 };
+  var CARD_WIDTH = { small: 252, medium: 292, large: 340 };
+
+  function L() {
+    return look || DEFAULT_LOOK;
+  }
+  /** Addresses from the chat app are relative to it. */
+  function abs(url) {
+    return url && url.charAt(0) === "/" ? base + url : url;
+  }
 
   function mobile() {
     return window.matchMedia("(max-width: 640px)").matches;
@@ -146,9 +218,11 @@
       s.height = "100%";
       s.borderRadius = "0";
     } else {
-      s.inset = "auto 20px 96px auto";
+      var l = L();
+      var above = l.y + l.size + 16;
+      s.inset = l.side === "left" ? "auto auto " + above + "px " + l.x + "px" : "auto " + l.x + "px " + above + "px auto";
       s.width = "384px";
-      s.height = "min(640px, calc(100vh - 128px))";
+      s.height = "min(640px, calc(100vh - " + (above + 32) + "px))";
       s.borderRadius = "18px";
     }
     // A full-screen chat on a phone should not let the page scroll behind it.
@@ -198,6 +272,12 @@
     teased = true;
     chatOpened = true;
     hideTeaser(false);
+    if (preview) {
+      // The preview shows the button's open state only; no chat starts.
+      isOpen = true;
+      if (launcher) launcher.classList.add("mwchat-open");
+      return;
+    }
     ensureFrame();
     clearTimeout(hideTimer);
     isOpen = true;
@@ -219,6 +299,11 @@
   }
 
   function close() {
+    if (preview) {
+      isOpen = false;
+      if (launcher) launcher.classList.remove("mwchat-open");
+      return;
+    }
     if (!panel) return;
     isOpen = false;
     panel.classList.remove("mwchat-shown");
@@ -263,23 +348,52 @@
   }
 
   function quiet() {
+    if (preview) return isOpen;
     // Not while the chat is open or under way, and not again once closed.
     if (isOpen || get("localStorage", "mwchat:active") === "1") return true;
     var off = Number(get("localStorage", "mwchat:teaser-off") || 0);
     return off > 0 && Date.now() - off < 7 * DAY;
   }
 
-  function hideTeaser(dismissed) {
+  function hideTeaser(dismissed, now) {
+    teaseRun++;
     for (var i = 0; i < teaserTimers.length; i++) clearTimeout(teaserTimers[i]);
     teaserTimers = [];
     clearTimeout(teaserHide);
     if (launcher) launcher.classList.remove("mwchat-ripple");
-    if (dismissed) put("localStorage", "mwchat:teaser-off", String(Date.now()));
+    if (dismissed && !preview) put("localStorage", "mwchat:teaser-off", String(Date.now()));
     if (!teaser) return;
     var t = teaser;
     teaser = null;
     t.classList.remove("mwchat-shown");
-    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, reduceMotion ? 0 : 320);
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, reduceMotion || now ? 0 : 320);
+  }
+
+  /**
+   * The line for this visit: one this visitor has not seen yet. Once all the
+   * lines here have been seen, they start over, never with the last one shown.
+   */
+  function pickLine(d) {
+    var lines = d.lines && d.lines.length ? d.lines : [{ id: "", text: d.text }];
+    if (lines.length === 1) return lines[0];
+    var seen = (get("localStorage", "mwchat:seen") || "").split(",");
+    var ids = [];
+    var fresh = [];
+    var i;
+    for (i = 0; i < lines.length; i++) {
+      ids.push(lines[i].id);
+      if (seen.indexOf(lines[i].id) < 0) fresh.push(lines[i]);
+    }
+    if (!fresh.length) {
+      var last = null;
+      for (i = seen.length - 1; i >= 0 && last === null; i--) if (ids.indexOf(seen[i]) >= 0) last = seen[i];
+      seen = seen.filter(function (id) { return ids.indexOf(id) < 0; });
+      for (i = 0; i < lines.length; i++) if (lines[i].id !== last) fresh.push(lines[i]);
+    }
+    var pick = fresh[Math.floor(Math.random() * fresh.length)];
+    seen.push(pick.id);
+    put("localStorage", "mwchat:seen", seen.filter(Boolean).slice(-60).join(","));
+    return pick;
   }
 
   function el(tag, cls, text) {
@@ -289,26 +403,49 @@
     return node;
   }
 
-  function buildTeaser(d, photoOk) {
-    var box = el("div", "mwchat-teaser");
+  /** The picture beside the line: the headshot, an uploaded photo, the MW mark, or none. */
+  function photoUrl(d) {
+    var c = L().card;
+    if (c.form === "bubble" || c.photo === "none") return null;
+    if (c.photo === "mark") return abs(L().mark);
+    return abs(c.photoUrl || d.photo);
+  }
+
+  function buildTeaser(d, photoOk, line, typing) {
+    var l = L();
+    var c = l.card;
+    var box = el("div", "mwchat-teaser mwchat-" + c.form + " mwchat-s-" + c.size + (c.style === "dark" ? " mwchat-dark" : ""));
     var body = el("button", "mwchat-teaser-body");
     body.type = "button";
-    body.setAttribute("aria-label", "Chat with " + d.name + ": " + d.text);
-    var photo = el("span", "mwchat-teaser-photo");
-    if (photoOk) {
-      var img = el("img");
-      img.src = d.photo;
-      img.alt = "";
-      photo.appendChild(img);
-    } else {
-      photo.appendChild(el("b", "", "MW"));
+    body.setAttribute("aria-label", "Chat with " + d.name + ": " + line);
+    var url = photoUrl(d);
+    if (url) {
+      var photo = el("span", "mwchat-teaser-photo");
+      if (photoOk && c.photo === "mark") {
+        var mk = el("b");
+        var crop = el("span", "mwchat-mk");
+        var markImg = el("img");
+        markImg.src = url;
+        markImg.alt = "";
+        crop.appendChild(markImg);
+        mk.appendChild(crop);
+        photo.appendChild(mk);
+      } else if (photoOk) {
+        var img = el("img");
+        img.src = url;
+        img.alt = "";
+        photo.appendChild(img);
+      } else {
+        photo.appendChild(el("b", "", "MW"));
+      }
+      if (d.online) photo.appendChild(el("span", "mwchat-teaser-dot"));
+      body.appendChild(photo);
     }
-    if (d.online) photo.appendChild(el("span", "mwchat-teaser-dot"));
     var copy = el("span", "mwchat-teaser-copy");
     copy.appendChild(el("span", "mwchat-teaser-name", d.name));
-    var text = el("span", "mwchat-teaser-text", d.text);
+    var text = el("span", "mwchat-teaser-text", line);
     text.setAttribute("aria-live", "polite");
-    if (reduceMotion) {
+    if (reduceMotion || !(typing > 0)) {
       copy.appendChild(text);
     } else {
       var dots = el("span", "mwchat-typing");
@@ -319,9 +456,8 @@
       later(function () {
         if (dots.parentNode) dots.parentNode.replaceChild(text, dots);
         text.className += " mwchat-in";
-      }, 1500);
+      }, typing * 1000);
     }
-    body.appendChild(photo);
     body.appendChild(copy);
     body.addEventListener("click", function () { open(); });
 
@@ -345,12 +481,15 @@
    */
   function clearOfPage(box) {
     if (!document.elementsFromPoint) return;
-    var w = box.offsetWidth;
-    var h = box.offsetHeight + 24; // room for the line that replaces the dots
-    var right = window.innerWidth - 20;
-    var bottom = window.innerHeight - 94;
+    var l = L();
+    // The widest it gets once the line replaces the dots, and room for a second line.
+    var w = Math.min(CARD_WIDTH[l.card.size] || 292, window.innerWidth - l.x - 16);
+    var h = box.offsetHeight + 24;
+    var left = l.side === "left" ? l.x : window.innerWidth - l.x - w;
+    var above = l.y + l.size + 14;
+    var bottom = window.innerHeight - above;
     var lift = 0;
-    for (var x = right - w + 6; x <= right - 6; x += 22) {
+    for (var x = left + 6; x <= left + w - 6; x += 22) {
       for (var y = bottom - 4; y >= bottom - h; y -= 14) {
         var hits = document.elementsFromPoint(x, y);
         for (var i = 0; i < hits.length; i++) {
@@ -364,15 +503,24 @@
         }
       }
     }
-    if (lift > 0 && lift <= 72) box.style.bottom = 94 + lift + "px";
+    if (lift > 0 && lift <= 72) box.style.bottom = above + lift + "px";
   }
 
-  function showTeaser(d, photoOk) {
+  function showTeaser(d, photoOk, still) {
     if (quiet() || teaser || chatOpened) return;
-    put("sessionStorage", "mwchat:teased", "1");
-    teaser = buildTeaser(d, photoOk);
+    if (!preview) put("sessionStorage", "mwchat:teased", "1");
+    if (!still) shownLine = previewLine || pickLine(d);
+    teaser = buildTeaser(d, photoOk, shownLine.text, still ? 0 : d.typing == null ? 1.5 : d.typing);
     document.body.appendChild(teaser);
     clearOfPage(teaser);
+    if (still) {
+      // A preview redrawn after a change: in place, without the entrance.
+      teaser.style.transition = "none";
+      teaser.classList.add("mwchat-shown");
+      void teaser.offsetWidth;
+      teaser.style.transition = "";
+      return;
+    }
     requestAnimationFrame(function () {
       requestAnimationFrame(function () { if (teaser) teaser.classList.add("mwchat-shown"); });
     });
@@ -383,7 +531,7 @@
     };
     teaser.addEventListener("mouseenter", function () { clearTimeout(teaserHide); });
     teaser.addEventListener("mouseleave", function () { autoHide(6000); });
-    autoHide(mobile() ? 15000 : 25000);
+    autoHide(Math.round((d.stay || 25) * (mobile() ? 600 : 1000)));
   }
 
   /** Whether to show the button here, and the greeting. Null if the chat app can't be reached. */
@@ -399,28 +547,37 @@
     if (teaser || quiet() || !launcher || !launcherAllowed) return;
     var ready = greeting
       ? Promise.resolve(greeting)
-      : loadConfig().then(function (c) { return c && c.greeting; });
+      : loadConfig().then(function (c) {
+          if (c) applyConfig(c);
+          return greeting;
+        });
     ready
       .then(function (d) {
-        if (!d || !d.text || quiet()) return;
-        // The ring first; the greeting follows once the photo is ready.
-        if (!reduceMotion) {
+        if (!d || !(d.text || (d.lines && d.lines.length)) || quiet()) return;
+        var run = ++teaseRun;
+        var r = d.ripple || DEFAULT_RIPPLE;
+        var started = Date.now();
+        // The rings first; the greeting follows once its picture is ready.
+        if (!reduceMotion && r.rings > 0) {
           launcher.classList.remove("mwchat-ripple");
           void launcher.offsetWidth;
           launcher.classList.add("mwchat-ripple");
-          later(function () { if (launcher) launcher.classList.remove("mwchat-ripple"); }, 3600);
+          later(function () { if (launcher) launcher.classList.remove("mwchat-ripple"); }, r.rings * r.speed * 1000 + 200);
         }
         var shown = false;
         var go = function (ok) {
-          if (shown) return;
+          if (shown || run !== teaseRun) return;
           shown = true;
-          later(function () { showTeaser(d, ok); }, reduceMotion ? 0 : 900);
+          var wait = reduceMotion ? 0 : Math.max(0, r.cardAfter * 1000 - (Date.now() - started));
+          later(function () { showTeaser(d, ok); }, wait);
         };
+        var url = photoUrl(d);
+        if (!url) return go(false);
         var probe = new Image();
         probe.onload = function () { go(true); };
         probe.onerror = function () { go(false); };
-        probe.src = d.photo;
-        setTimeout(function () { go(probe.complete && probe.naturalWidth > 0); }, 1500);
+        probe.src = url;
+        later(function () { go(probe.complete && probe.naturalWidth > 0); }, 1500);
       })
       .catch(function () {});
   }
@@ -452,6 +609,10 @@
 
   window.addEventListener("message", function (e) {
     if (e.origin !== base || !e.data) return;
+    if (preview) {
+      if (e.data.type === "mwchat:preview" && e.source === window.parent) previewWith(e.data);
+      return;
+    }
     switch (e.data.type) {
       case "mwchat:ready":
         sendPage();
@@ -477,12 +638,128 @@
     }
   });
 
-  var ICONS =
-    '<svg class="mwchat-i-chat" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+  var CHAT_ICON =
+    '<svg class="mwchat-i mwchat-i-chat" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
     'stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-    '<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5z"/></svg>' +
-    '<svg class="mwchat-i-close" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+    '<path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 13.5z"/></svg>';
+  var CLOSE_ICON =
+    '<svg class="mwchat-i mwchat-i-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
     'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+
+  function rgba(hex, alpha) {
+    var n = parseInt(String(hex).slice(1), 16) || 0;
+    return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + alpha + ")";
+  }
+
+  /** The look from the developer page, as rules laid over the ones above. */
+  function themeCss(l) {
+    var side = l.side === "left" ? "left" : "right";
+    var far = side === "left" ? "right" : "left";
+    var s = l.size;
+    var tail = Math.round(s / 2 - 6);
+    var w = CARD_WIDTH[l.card.size] || 292;
+    var room = "calc(100vw - " + (l.x + 16) + "px)";
+    var hug = l.card.form !== "card";
+    return (
+      ".mwchat-launcher{" + side + ":" + l.x + "px;" + far + ":auto;bottom:" + l.y + "px;width:" + s + "px;height:" + s + "px;" +
+      "background:" + l.color + ";color:" + l.iconColor + "}" +
+      ".mwchat-ring{" +
+      (l.light
+        ? "border-color:" + rgba(l.iconColor, 0.85) + ";box-shadow:0 0 0 2px rgba(255,255,255,.55)"
+        : "border-color:rgba(255,255,255,.9);box-shadow:0 0 0 2px " + rgba(l.color, 0.5) + ",inset 0 0 0 1px " + rgba(l.color, 0.25)) +
+      "}" +
+      ".mwchat-launcher.mwchat-ripple .mwchat-ring{animation-duration:" + ((greeting && greeting.ripple) || DEFAULT_RIPPLE).speed + "s;" +
+      "animation-iteration-count:" + ((greeting && greeting.ripple) || DEFAULT_RIPPLE).rings + "}" +
+      ".mwchat-teaser{" + side + ":" + l.x + "px;" + far + ":auto;bottom:" + (l.y + s + 14) + "px;" +
+      (hug ? "width:auto;max-width:min(" + w + "px," + room + ");" : "width:" + w + "px;max-width:" + room + ";") +
+      "transform-origin:" + (side === "left" ? tail + 7 + "px" : "calc(100% - " + (tail + 7) + "px)") + " 100%}" +
+      ".mwchat-teaser:after{" + side + ":" + tail + "px;" + far + ":auto}" +
+      ".mwchat-bubble,.mwchat-bubble .mwchat-teaser-body{border-radius:" + (side === "left" ? "22px 22px 22px 6px" : "22px 22px 6px 22px") + "}" +
+      ".mwchat-teaser-name{color:" + l.dark + "}" +
+      ".mwchat-teaser-body:focus-visible{outline-color:" + l.dark + "}" +
+      ".mwchat-teaser-photo>b{background:" + l.dark + "}" +
+      ".mwchat-teaser.mwchat-dark,.mwchat-teaser.mwchat-dark:after{background:" + l.dark + "}" +
+      ".mwchat-dark .mwchat-teaser-dot{border-color:" + l.dark + "}" +
+      "@media (min-width:641px){.mwchat-panel{transform-origin:bottom " + side + "}}"
+    );
+  }
+
+  /** The button's icon: a chat bubble, the MW mark, Michael's photo, or an uploaded image. */
+  function fillLauncher() {
+    if (!launcher) return;
+    var l = L();
+    var badgeOn = badge && badge.style.display === "block";
+    launcher.innerHTML = "";
+    var picture = null;
+    if ((l.icon === "photo" || l.icon === "image") && l.iconUrl) {
+      picture = el("img", "mwchat-i mwchat-i-chat " + (l.icon === "photo" ? "mwchat-i-photo" : "mwchat-i-logo"));
+      picture.alt = "";
+      picture.src = abs(l.iconUrl);
+    } else if (l.icon === "mark" && l.iconUrl) {
+      picture = el("span", "mwchat-i mwchat-i-chat mwchat-mk");
+      var img = el("img");
+      img.alt = "";
+      img.src = abs(l.iconUrl);
+      picture.appendChild(img);
+    }
+    if (picture) {
+      var failed = function () {
+        if (picture.parentNode) {
+          picture.insertAdjacentHTML("beforebegin", CHAT_ICON);
+          picture.parentNode.removeChild(picture);
+        }
+      };
+      (picture.tagName === "IMG" ? picture : picture.firstChild).onerror = failed;
+      launcher.appendChild(picture);
+    } else {
+      launcher.insertAdjacentHTML("beforeend", CHAT_ICON);
+    }
+    launcher.insertAdjacentHTML("beforeend", CLOSE_ICON);
+    launcher.appendChild(el("span", "mwchat-ring"));
+    badge = el("span", "mwchat-badge");
+    launcher.appendChild(badge);
+    setBadge(badgeOn);
+  }
+
+  function applyConfig(c) {
+    launcherAllowed = !c || c.launcher !== false;
+    greeting = (c && c.greeting) || null;
+    look = (c && c.look) || null;
+    var theme = document.getElementById("mwchat-theme");
+    if (!theme) {
+      theme = document.createElement("style");
+      theme.id = "mwchat-theme";
+      document.head.appendChild(theme);
+    }
+    theme.textContent = themeCss(L());
+    fillLauncher();
+    layout();
+  }
+
+  /**
+   * The developer page's preview: settings as they are being edited. "play"
+   * runs the rings and the greeting from the start; otherwise the greeting
+   * is redrawn in place so a change shows at once.
+   */
+  function previewWith(m) {
+    applyConfig(m.config);
+    previewLine = m.line || null;
+    if (previewLine) shownLine = previewLine;
+    isOpen = false;
+    chatOpened = false;
+    if (launcher) launcher.classList.remove("mwchat-open");
+    hideTeaser(false, true);
+    if (!greeting) return;
+    if (m.play) return tease();
+    if (!shownLine) shownLine = previewLine || pickLine(greeting);
+    var url = photoUrl(greeting);
+    if (!url) return showTeaser(greeting, false, true);
+    var run = teaseRun;
+    var probe = new Image();
+    probe.onload = function () { if (run === teaseRun) showTeaser(greeting, true, true); };
+    probe.onerror = function () { if (run === teaseRun) showTeaser(greeting, false, true); };
+    probe.src = url;
+  }
 
   function init() {
     if (!document.getElementById("mwchat-styles")) {
@@ -497,20 +774,19 @@
       launcher.className = "mwchat-launcher";
       launcher.setAttribute("aria-label", "Chat with Michael Winter");
       launcher.setAttribute("aria-expanded", "false");
-      launcher.innerHTML = ICONS;
-      launcher.appendChild(el("span", "mwchat-ring"));
-      badge = document.createElement("span");
-      badge.className = "mwchat-badge";
-      launcher.appendChild(badge);
       launcher.addEventListener("click", toggle);
       launcher.style.display = "none";
+      fillLauncher();
       document.body.appendChild(launcher);
+      if (preview) {
+        window.addEventListener("resize", layout);
+        window.parent.postMessage({ type: "mwchat:preview-ready" }, base);
+        return;
+      }
       // The button shows once the chat app says it is on for this site, or
       // if the app can't be reached (better a button than none).
       loadConfig().then(function (c) {
-        launcherAllowed = !c || c.launcher !== false;
-        greeting = (c && c.greeting) || null;
-        layout();
+        applyConfig(c);
         if (greeting) scheduleTeaser(Math.max(2, Number(greeting.delay) || 8) * 1000);
       });
     }
