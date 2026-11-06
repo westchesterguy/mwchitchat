@@ -36,7 +36,14 @@ Michael from his own app. It replaces Tawk.to.
   replies after a visitor has left the site, his messages are emailed to
   them half a minute later, with a link that reopens the chat (`#mwchat`).
 - **Notifications** reach his phone when a chat starts or a visitor writes,
-  through Web Push. No Firebase project is needed.
+  through Web Push. No Firebase project is needed. Sent as high urgency (so
+  the push service can wake a phone saving battery) and kept 24 hours for a
+  phone that is off or out of signal. A visitor's message skips the phone
+  only while Michael is actually watching that chat (on screen, in focus,
+  used in the last two minutes, checked within 10 seconds); a chat merely
+  left open still alerts. Every send is in the developer page's
+  Notification log, and the chat app's Settings list the Android battery
+  settings that can hold alerts back.
 
 ## Developer page
 

@@ -374,6 +374,28 @@ function Notifications() {
             )}
           </div>
           {note && <p className="mt-2 text-[13px] text-muted">{note}</p>}
+          <details className="mt-3 rounded-xl bg-canvas p-3.5 text-[13px] leading-relaxed text-ink-soft">
+            <summary className="cursor-pointer font-medium text-ink">Alerts late or missing on your phone?</summary>
+            <p className="mt-2">
+              Android saves battery by holding back alerts from apps it thinks you don&rsquo;t need. The names vary a little by
+              phone; on most:
+            </p>
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5">
+              <li>
+                Settings, Apps, <strong>MW Chat</strong>, Battery: choose <strong>Unrestricted</strong>. Do the same for{" "}
+                <strong>Chrome</strong>, which receives the alerts for the app.
+              </li>
+              <li>Same screens: turn off <strong>Pause app activity if unused</strong> for both.</li>
+              <li>
+                Settings, Apps, MW Chat, Notifications: allowed, with <strong>sound</strong> and <strong>pop on screen</strong> on.
+              </li>
+              <li>If you use Do Not Disturb, add MW Chat to the apps allowed through.</li>
+              <li>
+                Then use <strong>Send a test</strong> above: it should arrive within a few seconds. The developer page&rsquo;s
+                Health tab shows when each alert was sent, so a late one can be traced to the phone or the server.
+              </li>
+            </ol>
+          </details>
         </div>
       </div>
     </section>

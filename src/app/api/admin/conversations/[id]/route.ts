@@ -15,8 +15,13 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const { id } = await ctx.params;
   if (!UUID.test(id)) return jsonError(404, "not_found");
 
+  // "watching=1": the chat is on screen, in focus, with recent taps or
+  // typing. Only then do its new messages skip Michael's phone.
+  const watching = new URL(req.url).searchParams.get("watching") === "1";
   const [row] = await db()`
-    update conversations set agent_last_read_at = now()
+    update conversations set
+      agent_last_read_at = now(),
+      agent_watching_at = case when ${watching} then now() else agent_watching_at end
     where id = ${id}
     returning id, site, status, start_url, start_title, prechat, ip, country, region,
               city, created_at, closed_at, visitor_id, ai_paused`;

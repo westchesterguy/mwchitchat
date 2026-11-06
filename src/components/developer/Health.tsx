@@ -17,7 +17,13 @@ interface Data {
     sent30: number;
     recent: { id: number; kind: string; recipients: string[]; subject: string; ok: boolean; error: string | null; created_at: string }[];
   };
-  push?: { keys: boolean; devices: number };
+  push?: {
+    keys: boolean;
+    devices: number;
+    sent24: number;
+    failed24: number;
+    recent: { id: number; title: string; service: string; status: number | null; ok: boolean; error: string | null; ms: number | null; created_at: string }[];
+  };
   errors?: {
     last24h: number;
     recent: { id: number; source: string; message: string; detail: Record<string, unknown> | null; created_at: string }[];
@@ -141,10 +147,14 @@ export function Health() {
         )}
         {data.push && (
           <Status
-            level={!data.push.keys ? "bad" : data.push.devices === 0 ? "warn" : "ok"}
+            level={!data.push.keys ? "bad" : data.push.devices === 0 || data.push.failed24 > 0 ? "warn" : "ok"}
             title="Notifications"
             value={data.push.devices === 1 ? "1 device" : `${data.push.devices} devices`}
-            note={data.push.devices === 0 ? "Turn on in the chat app's Settings" : "Signed up for alerts"}
+            note={
+              data.push.devices === 0
+                ? "Turn on in the chat app's Settings"
+                : `${data.push.sent24} sent, ${data.push.failed24} failed in 24 hours`
+            }
           />
         )}
         {data.errors && (
@@ -248,6 +258,57 @@ export function Health() {
                   <tr>
                     <td colSpan={5} className="px-5 py-8 text-center text-muted">
                       No emails yet. Use Send a test email in the chat app&rsquo;s Settings.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {data.push && (
+        <section className={`${card} !p-0`}>
+          <div className="px-4 pb-3 pt-4 sm:px-5">
+            <h2 className={h2}>Notification log</h2>
+            <p className={sub}>
+              The last 15 notifications and when the push service accepted them. If one shows here as sent on time but reached your
+              phone late, the delay is on the phone: see Notifications in the chat app&rsquo;s Settings for what to change.
+            </p>
+          </div>
+          <div className="scroll-thin overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-[13px]">
+              <thead className="border-y border-line text-[11px] uppercase tracking-[0.06em] text-muted">
+                <tr>
+                  <th className="px-4 py-2 font-semibold sm:pl-5">Sent</th>
+                  <th className="px-3 py-2 font-semibold">Notification</th>
+                  <th className="px-3 py-2 font-semibold">Service</th>
+                  <th className="px-4 py-2 font-semibold sm:pr-5">Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.push.recent.map((p) => (
+                  <tr key={p.id} className="border-b border-line align-top last:border-0">
+                    <td className="whitespace-nowrap px-4 py-2.5 text-muted sm:pl-5">{when(p.created_at)}</td>
+                    <td className="px-3 py-2.5 text-ink-soft">{p.title}</td>
+                    <td className="px-3 py-2.5 text-muted">{p.service}</td>
+                    <td className="px-4 py-2.5 sm:pr-5">
+                      {p.ok ? (
+                        <span className="font-medium text-ok">
+                          Accepted{p.ms !== null ? ` in ${(p.ms / 1000).toFixed(1)}s` : ""}
+                        </span>
+                      ) : (
+                        <span className="text-danger">
+                          Failed{p.status ? ` (${p.status})` : ""}: {p.error}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {data.push.recent.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-8 text-center text-muted">
+                      None yet. Use Send a test under Notifications in the chat app&rsquo;s Settings.
                     </td>
                   </tr>
                 )}

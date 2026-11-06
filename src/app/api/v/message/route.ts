@@ -59,11 +59,13 @@ export async function POST(req: Request) {
     after(() => replyInChat(id));
   }
 
-  // Michael is told unless he has had this chat open in the last half minute.
+  // Michael is told unless he is looking at this very chat right now (on
+  // screen, in focus, recently used). A chat merely left open somewhere, or
+  // one he just switched away from, still notifies.
   const [c] = await db()`
     select v.name,
-           c.agent_last_read_at is null
-             or c.agent_last_read_at < now() - interval '30 seconds' as notify
+           c.agent_watching_at is null
+             or c.agent_watching_at < now() - interval '10 seconds' as notify
     from conversations c join visitors v on v.id = c.visitor_id
     where c.id = ${visitor.conversationId}`;
   if (c?.notify) {

@@ -84,14 +84,25 @@ export function ConversationView({ id }: { id: string }) {
   const { messages, lastId, merge, optimistic, settle, remove } = useMessages();
   const loaded = useRef(false);
 
+  // Taps, typing and scrolling: proof someone is at this screen.
+  const lastUsed = useRef(Date.now());
+  useEffect(() => {
+    const used = () => (lastUsed.current = Date.now());
+    const events = ["pointerdown", "keydown", "wheel", "touchstart", "focus"] as const;
+    events.forEach((e) => window.addEventListener(e, used, { passive: true }));
+    return () => events.forEach((e) => window.removeEventListener(e, used));
+  }, []);
+
   useEffect(
     () =>
       poll(async () => {
+        // Only then does the phone stay quiet for this chat's new messages.
+        const watching = document.hasFocus() && Date.now() - lastUsed.current < 120_000;
         const { ok, status, data } = await adminApi<{
           conversation: Conversation;
           visitor: Visitor;
           messages: ChatMessage[];
-        }>(`/api/admin/conversations/${id}?after=${lastId.current}`);
+        }>(`/api/admin/conversations/${id}?after=${lastId.current}${watching ? "&watching=1" : ""}`);
         if (status === 404) setMissing(true);
         if (!ok) return;
         const fromVisitor = data.messages.some((m) => m.sender === "visitor" && m.id > lastId.current);

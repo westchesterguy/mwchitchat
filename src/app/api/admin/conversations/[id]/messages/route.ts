@@ -33,7 +33,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (!text && !file) return jsonError(400, "bad_request");
 
   const [found] = await db()`
-    update conversations set status = 'open', closed_at = null, agent_last_read_at = now()
+    update conversations set status = 'open', closed_at = null, agent_last_read_at = now(), agent_watching_at = now()
     where id = ${id} returning id`;
   if (!found) return jsonError(404, "not_found");
 

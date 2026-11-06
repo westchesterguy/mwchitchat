@@ -39,6 +39,13 @@ export async function GET(req: Request) {
     return Response.json({ database }, { headers: { "cache-control": "no-store" } });
   }
 
+  const [pushes, [pushDay]] = await Promise.all([
+    db()`select id, title, service, status, ok, error, ms, created_at from push_log order by created_at desc limit 15`,
+    db()`
+      select count(*) filter (where ok)::int as sent, count(*) filter (where not ok)::int as failed
+      from push_log where created_at > now() - interval '24 hours'`,
+  ]);
+
   const [tables, [counts], migrations, emails, [emailFails], errors, [errors24], [devices], vapid, online, recipients, mode] =
     await Promise.all([
       db()`
@@ -83,7 +90,7 @@ export async function GET(req: Request) {
         sent30: emailFails.total,
         recent: emails,
       },
-      push: { keys: vapid.ok && vapid.value, devices: devices.n },
+      push: { keys: vapid.ok && vapid.value, devices: devices.n, sent24: pushDay.sent, failed24: pushDay.failed, recent: pushes },
       errors: { last24h: errors24.n, recent: errors },
       online,
       env: ENV.map(([name, purpose]) => ({ name, purpose, set: Boolean(process.env[name]) })),
