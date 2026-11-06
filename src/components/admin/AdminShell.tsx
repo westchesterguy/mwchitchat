@@ -9,6 +9,7 @@ import { Inbox } from "./Inbox";
 import { applyTheme, getTheme } from "./prefs";
 import { unlockAudio } from "./tones";
 import { adminApi } from "./util";
+import { noteAndroidApp } from "./app";
 
 interface Presence {
   online: boolean | null;
@@ -55,6 +56,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const [online, setOnlineState] = useState<boolean | null>(null);
 
   useEffect(() => {
+    noteAndroidApp();
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/sw.js", { scope: "/chatapp" })

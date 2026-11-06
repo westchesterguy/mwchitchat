@@ -12,16 +12,16 @@
   "navigationDividerColorDark": "#002349",
   "backgroundColor": "#FAFAF7",
   "enableNotifications": true,
-  "startUrl": "/chatapp",
+  "startUrl": "/chatapp?app=android&v=2",
   "iconUrl": "https://chat.westchesterguy.com/icons/icon-512.png",
   "maskableIconUrl": "https://chat.westchesterguy.com/icons/maskable-512.png",
   "splashScreenFadeOutDuration": 300,
   "signingKey": {
-    "path": "./mwchat-upload.keystore",
+    "path": "./mwchat-android.keystore",
     "alias": "mwchat"
   },
-  "appVersionName": "1.0.0",
-  "appVersionCode": 1,
+  "appVersionName": "1.1.0",
+  "appVersionCode": 2,
   "shortcuts": [],
   "generatorApp": "bubblewrap-core",
   "fallbackType": "customtabs",
@@ -38,6 +38,6 @@
   "additionalTrustedOrigins": [],
   "retainedBundles": [],
   "displayOverride": [],
-  "appVersion": "1.0.0",
+  "appVersion": "1.1.0",
   "webManifestUrl": "https://chat.westchesterguy.com/manifest.webmanifest"
 }

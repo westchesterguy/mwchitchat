@@ -127,3 +127,6 @@ export const ExternalIcon = (p: IconProps) => (
 export const SparkleIcon = (p: IconProps) => (
   <Icon {...p}><path d="M12 3.5l1.6 4.4 4.4 1.6-4.4 1.6L12 15.5l-1.6-4.4L6 9.5l4.4-1.6zM18.5 15l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" /></Icon>
 );
+export const SmartphoneIcon = (p: IconProps) => (
+  <Icon {...p}><rect x="6.5" y="2.5" width="11" height="19" rx="2.5" /><path d="M10.5 18.5h3" /></Icon>
+);

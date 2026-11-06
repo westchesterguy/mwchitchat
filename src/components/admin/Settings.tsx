@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { ANDROID_APP } from "@/lib/android-app";
 import { sites } from "@/lib/sites";
 import {
   ArrowDownIcon,
@@ -11,6 +12,7 @@ import {
   BellIcon,
   CheckIcon,
   CopyIcon,
+  SmartphoneIcon,
   DownloadIcon,
   CloseIcon,
   LogoutIcon,
@@ -26,6 +28,7 @@ import {
 } from "../ui/icons";
 import { Switch } from "../ui/Switch";
 import { usePresence } from "./AdminShell";
+import { androidAppCode, setPhoneTone } from "./app";
 import { getTheme, getTone, getVolume, setTheme, setTone, setVolume, type Theme } from "./prefs";
 import { playTone, SILENT, toneFile, TONES } from "./tones";
 import { adminApi } from "./util";
@@ -75,6 +78,7 @@ export function Settings({ appUrl }: { appUrl: string }) {
           <Notifications />
           <LeadEmails />
           <Sounds />
+          <AndroidApp />
           <Questions />
           <Install appUrl={appUrl} />
           <SignOut />
@@ -154,10 +158,12 @@ function Sounds() {
   const [tone, setToneState] = useState("bell");
   const [volume, setVolumeState] = useState(0.7);
   const [saving, setSaving] = useState(false);
+  const [app, setApp] = useState<number | null>(null);
 
   useEffect(() => {
     setToneState(getTone());
     setVolumeState(getVolume());
+    setApp(androidAppCode());
   }, []);
 
   const choose = (id: string) => {
@@ -246,14 +252,82 @@ function Sounds() {
         <span className="w-10 text-right text-[13px] tabular-nums text-muted">{Math.round(volume * 100)}%</span>
       </label>
 
-      <div className="mt-4 rounded-xl bg-canvas p-3.5 text-[13px] leading-relaxed text-muted">
-        When the app is closed, your phone plays the sound chosen for MW Chat in its own notification settings.
-        To use this tone there too, save it, then choose it under Settings, Apps, MW Chat, Notifications, Sound.
-        {current && (
-          <button type="button" onClick={save} disabled={saving} className={`${secondary} mt-3 w-full justify-center sm:w-auto`}>
-            {saving ? <Spinner /> : <DownloadIcon className="h-4 w-4" />} Save &ldquo;{current.name}&rdquo; to this device
+      {app !== null && app >= 2 ? (
+        <div className="mt-4 rounded-xl bg-navy-tint p-3.5 text-[13px] leading-relaxed text-ink-soft">
+          When MW Chat is closed, this phone plays the app&rsquo;s own alert sound. Make it the tone chosen above:
+          <button
+            type="button"
+            onClick={() => setPhoneTone(tone)}
+            className={`${primary} mt-3 w-full justify-center sm:w-auto`}
+          >
+            <BellIcon className="h-4 w-4" />
+            {tone === SILENT ? "Make this phone's alerts silent" : `Use \u201c${current?.name}\u201d as this phone's alert sound`}
           </button>
-        )}
+          <p className="mt-2 text-[12px] text-muted">The phone confirms with a short message. Then use Send a test under Notifications to hear it.</p>
+        </div>
+      ) : (
+        <div className="mt-4 rounded-xl bg-canvas p-3.5 text-[13px] leading-relaxed text-muted">
+          {app === 1 ? (
+            <>
+              This phone has an older MW Chat app. Install the new version (Android app, below) to set its alert sound from
+              here with one tap.
+            </>
+          ) : (
+            <>
+              When the app is closed, your phone plays the sound chosen for MW Chat in its own notification settings. The
+              Android app (below) can use these tones with one tap. Otherwise, save this tone and choose it under Settings, Apps,
+              MW Chat, Notifications, Sound.
+            </>
+          )}
+          {current && (
+            <button type="button" onClick={save} disabled={saving} className={`${secondary} mt-3 w-full justify-center sm:w-auto`}>
+              {saving ? <Spinner /> : <DownloadIcon className="h-4 w-4" />} Save &ldquo;{current.name}&rdquo; to this device
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AndroidApp() {
+  const [app, setApp] = useState<number | null>(null);
+  useEffect(() => setApp(androidAppCode()), []);
+  const mb = (ANDROID_APP.bytes / 1024 / 1024).toFixed(1);
+  return (
+    <section className={card}>
+      <div className="flex items-start gap-4">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-tint text-accent">
+          <SmartphoneIcon />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className={h2}>Android app</h2>
+          <p className="mt-1 text-[14px] text-muted">
+            MW Chat for Android, version {ANDROID_APP.version} ({mb} MB). It opens this chat app full-screen and plays the alert
+            sound you choose under Sounds.
+          </p>
+          {app !== null && (
+            <p className={`mt-2 text-[13px] font-medium ${app >= ANDROID_APP.code ? "text-ok" : "text-warn"}`}>
+              {app >= ANDROID_APP.code ? "This phone has the latest version." : "This phone has an older version. Install the new one below."}
+            </p>
+          )}
+          <a href={ANDROID_APP.url} download={`MW Chat ${ANDROID_APP.version}.apk`} className={`${primary} mt-3`}>
+            <DownloadIcon className="h-4 w-4" /> Download the app
+          </a>
+          <details className="mt-3 rounded-xl bg-canvas p-3.5 text-[13px] leading-relaxed text-ink-soft">
+            <summary className="cursor-pointer font-medium text-ink">How to install</summary>
+            <ol className="mt-2 list-decimal space-y-1.5 pl-5">
+              <li>
+                If you have MW Chat 1.0, uninstall it first. Version {ANDROID_APP.version} is signed with a new key, so Android
+                won&rsquo;t install it over the old one.
+              </li>
+              <li>On your Android phone, tap Download, then open the file. If asked, allow Chrome to install apps.</li>
+              <li>Android may warn that the app isn&rsquo;t from the Play Store. That&rsquo;s expected for an app you install yourself.</li>
+              <li>Open MW Chat and sign in. In Settings, turn on Notifications and tap Send a test.</li>
+              <li>Under Sounds, pick a tone and tap &ldquo;Use as this phone&rsquo;s alert sound&rdquo;.</li>
+            </ol>
+          </details>
+        </div>
       </div>
     </section>
   );

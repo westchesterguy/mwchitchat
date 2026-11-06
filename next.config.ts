@@ -56,6 +56,15 @@ const nextConfig: NextConfig = {
         headers: [{ key: "Cache-Control", value: "public, max-age=300, must-revalidate" }],
       },
       {
+        // The Android app, downloaded from Settings: always the current build.
+        source: "/downloads/:file*",
+        headers: [
+          { key: "Content-Type", value: "application/vnd.android.package-archive" },
+          { key: "Content-Disposition", value: 'attachment; filename="MW-Chat.apk"' },
+          { key: "Cache-Control", value: "no-cache" },
+        ],
+      },
+      {
         source: "/sw.js",
         headers: [{ key: "Cache-Control", value: "no-cache" }],
       },

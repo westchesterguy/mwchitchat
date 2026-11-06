@@ -1,11 +1,14 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
       "package_name": "com.westchesterguy.chat",
       "sha256_cert_fingerprints": [
-        "2D:BC:8C:CE:7E:45:A5:7C:3D:78:EC:D8:D3:A5:FA:EE:68:72:28:0C:9F:E4:5F:EC:AC:83:07:62:AE:99:E3:8A"
+        "2D:BC:8C:CE:7E:45:A5:7C:3D:78:EC:D8:D3:A5:FA:EE:68:72:28:0C:9F:E4:5F:EC:AC:83:07:62:AE:99:E3:8A",
+        "16:0A:6C:2F:DF:05:3B:9F:67:F1:28:52:3A:C6:EB:11:B7:8B:16:B8:B8:0E:F6:70:A9:46:28:AA:54:7C:96:A9"
       ]
     }
   }

@@ -78,6 +78,54 @@ export interface Tone {
   /** Seconds of sound, for rendering to a file. */
   length: number;
   play: (ctx: Ctx, out: AudioNode, t: number) => void;
+  /** A recording to play instead (the spoken alert), from public/sounds. */
+  sample?: string;
+}
+
+/** A burst of noise through a band-pass filter: breath, the rasp in a bark. */
+function noise(ctx: Ctx, out: AudioNode, t: number, dur: number, freq: number, q: number, level: number) {
+  const len = Math.ceil(ctx.sampleRate * dur);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const src = ctx.createBufferSource();
+  src.buffer = buf;
+  const f = ctx.createBiquadFilter();
+  f.type = "bandpass";
+  f.frequency.value = freq;
+  f.Q.value = q;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(level, t + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(out);
+  src.start(t);
+  src.stop(t + dur + 0.02);
+}
+
+/** One "woof": a rough voice falling in pitch, shaped by a mouth-like filter, with breath. */
+function bark(ctx: Ctx, out: AudioNode, t: number, pitch: number) {
+  const osc = ctx.createOscillator();
+  osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(430 * pitch, t);
+  osc.frequency.exponentialRampToValueAtTime(270 * pitch, t + 0.05);
+  osc.frequency.exponentialRampToValueAtTime(170 * pitch, t + 0.17);
+  const mouth = ctx.createBiquadFilter();
+  mouth.type = "bandpass";
+  mouth.frequency.value = 780;
+  mouth.Q.value = 2.2;
+  const soft = ctx.createBiquadFilter();
+  soft.type = "lowpass";
+  soft.frequency.value = 2400;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(1.0, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.32, t + 0.08);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+  osc.connect(mouth).connect(soft).connect(g).connect(out);
+  osc.start(t);
+  osc.stop(t + 0.24);
+  noise(ctx, out, t, 0.13, 1500, 1.1, 0.35);
 }
 
 export const TONES: Tone[] = [
@@ -186,6 +234,77 @@ export const TONES: Tone[] = [
       osc.stop(t + 0.25);
     },
   },
+  {
+    id: "carlock",
+    name: "Car lock",
+    length: 0.5,
+    // Two quick rising chirps, like a key fob locking a car.
+    play: (c, o, t) =>
+      [0, 0.17].forEach((dt) => {
+        const osc = c.createOscillator();
+        osc.type = "square";
+        osc.frequency.setValueAtTime(2300, t + dt);
+        osc.frequency.linearRampToValueAtTime(3100, t + dt + 0.07);
+        const f = c.createBiquadFilter();
+        f.type = "lowpass";
+        f.frequency.value = 5000;
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.0001, t + dt);
+        g.gain.exponentialRampToValueAtTime(0.4, t + dt + 0.004);
+        g.gain.setValueAtTime(0.4, t + dt + 0.07);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dt + 0.095);
+        osc.connect(f).connect(g).connect(o);
+        osc.start(t + dt);
+        osc.stop(t + dt + 0.11);
+      }),
+  },
+  {
+    id: "siren",
+    name: "Fire engine",
+    length: 2.5,
+    // A siren's wail: up, a moment at the top, then down.
+    play: (c, o, t) => {
+      const g = c.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.3, t + 0.18);
+      g.gain.setValueAtTime(0.3, t + 1.9);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 2.35);
+      const f = c.createBiquadFilter();
+      f.type = "lowpass";
+      f.frequency.value = 2600;
+      f.connect(g).connect(o);
+      (["sawtooth", "sine"] as const).forEach((type, i) => {
+        const osc = c.createOscillator();
+        osc.type = type;
+        const fr = osc.frequency;
+        fr.setValueAtTime(520, t);
+        fr.exponentialRampToValueAtTime(1350, t + 0.95);
+        fr.setValueAtTime(1350, t + 1.25);
+        fr.exponentialRampToValueAtTime(560, t + 2.3);
+        const level = c.createGain();
+        level.gain.value = i === 0 ? 0.55 : 0.9;
+        osc.connect(level).connect(f);
+        osc.start(t);
+        osc.stop(t + 2.4);
+      });
+    },
+  },
+  {
+    id: "bark",
+    name: "Bark",
+    length: 0.8,
+    play: (c, o, t) => {
+      bark(c, o, t, 1);
+      bark(c, o, t + 0.3, 0.93);
+    },
+  },
+  {
+    id: "heymichael",
+    name: "Hey Michael!",
+    length: 1.1,
+    sample: "/sounds/hey-michael.wav",
+    play: () => {},
+  },
 ];
 
 export const SILENT = "none";
@@ -222,11 +341,43 @@ export function unlockAudio() {
   if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
 }
 
+const samples = new Map<string, Promise<AudioBuffer>>();
+
+/** A recording, fetched and decoded once. */
+function sample(ctx: BaseAudioContext, src: string): Promise<AudioBuffer> {
+  if (!samples.has(src)) {
+    samples.set(
+      src,
+      fetch(src)
+        .then((r) => r.arrayBuffer())
+        .then((b) => ctx.decodeAudioData(b))
+        .catch((e) => {
+          samples.delete(src);
+          throw e;
+        }),
+    );
+  }
+  return samples.get(src)!;
+}
+
+function playSample(ctx: BaseAudioContext, out: AudioNode, t: number, buffer: AudioBuffer) {
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.connect(out);
+  src.start(t);
+}
+
 export function playTone(id: string, volume: number) {
   const tone = findTone(id);
   const ctx = context();
   if (!tone || !ctx || volume <= 0) return;
-  const start = () => tone.play(ctx, master(ctx, volume), ctx.currentTime + 0.02);
+  const start = tone.sample
+    ? () => {
+        sample(ctx, tone.sample!)
+          .then((b) => playSample(ctx, master(ctx, volume), ctx.currentTime + 0.02, b))
+          .catch(() => {});
+      }
+    : () => tone.play(ctx, master(ctx, volume), ctx.currentTime + 0.02);
   if (ctx.state === "suspended") ctx.resume().then(start).catch(() => {});
   else start();
 }
@@ -234,6 +385,11 @@ export function playTone(id: string, volume: number) {
 /** Renders a tone to a 16-bit mono WAV file. */
 export async function toneFile(id: string, volume = 0.9): Promise<Blob | null> {
   const tone = findTone(id);
+  if (tone?.sample) {
+    // Already a sound file: hand it over as it is.
+    const res = await fetch(tone.sample).catch(() => null);
+    return res?.ok ? res.blob() : null;
+  }
   if (!tone || typeof OfflineAudioContext === "undefined") return null;
   const rate = 44100;
   const ctx = new OfflineAudioContext(1, Math.ceil(rate * (tone.length + 0.3)), rate);

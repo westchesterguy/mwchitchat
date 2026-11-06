@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The alert sounds are looked up by name, so keep them all in the build. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@raw/tone_*" />
