@@ -23,6 +23,7 @@ interface Row {
   unread: number;
   preview: string | null;
   last_sender: "visitor" | "agent" | null;
+  last_ai: boolean | null;
 }
 
 function Skeleton() {
@@ -156,7 +157,7 @@ export function Inbox({ activeId }: { activeId: string | null }) {
                     </div>
                     <div className="mt-0.5 flex items-center gap-2">
                       <p className={`min-w-0 flex-1 truncate text-[14px] ${unread ? "text-ink" : "text-muted"}`}>
-                        {r.last_sender === "agent" && <span className="text-faint">You: </span>}
+                        {r.last_sender === "agent" && <span className="text-faint">{r.last_ai ? "Assistant: " : "You: "}</span>}
                         {r.preview ?? ""}
                       </p>
                       {unread > 0 && (

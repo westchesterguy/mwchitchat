@@ -56,6 +56,16 @@ the chat app, nor the other way round.
   away message, the rescue (on or off, wait, message, second alert),
   emailing replies to visitors who left, visitor attachments, auto-closing
   quiet chats, the chat button per site.
+- **AI integration:** an optional AI assistant, **off** until switched on
+  there. While off, nothing is sent to any AI service. It can use Claude
+  (through Anthropic's SDK) or any OpenAI-style service: ChatGPT, Gemini,
+  DeepSeek, Qwen, Mistral, Grok, Kimi, Groq, OpenRouter, the Vercel AI
+  Gateway, or another by address. Three modes: drafts for Michael to send,
+  covering for him (while away or past the rescue time), or always on
+  (stepping back for 30 minutes when he writes). It answers only from the
+  context entered there, follows fixed rules (says it is an assistant, no
+  invented facts, fair housing, no legal or financing advice), has per-chat
+  and monthly limits, a test, and a log. Code in `src/lib/ai/`.
 - **Data:** a full JSON backup (no photos, no private keys), deleting one
   person's data, clearing old photos and PDFs.
 
@@ -81,6 +91,7 @@ notifications.
 | `POSTGRES_URL`, `POSTGRES_URL_NON_POOLING` | yes | Added by the Supabase integration |
 | `ADMIN_PASSWORD` | yes | The chat app's password |
 | `DEVELOPER_PASSWORD` | no | A separate password for `/developer` |
+| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `DEEPSEEK_API_KEY`, `QWEN_API_KEY`, `MISTRAL_API_KEY`, `XAI_API_KEY`, `MOONSHOT_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `AI_GATEWAY_API_KEY`, `AI_CUSTOM_API_KEY` | no | Only for the AI service chosen on the developer page |
 | `RESEND_API_KEY` | for lead email | Same key as the sites |
 | `LEAD_FROM` | no | Sender for lead email; its domain must be verified in Resend |
 | `LEAD_TO` | no | Inbox used until addresses are saved in Settings |

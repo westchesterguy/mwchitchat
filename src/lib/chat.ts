@@ -19,6 +19,8 @@ export interface ChatMessage {
   body: string;
   at: string;
   attachment: Attachment | null;
+  /** Written by the AI assistant rather than Michael. */
+  ai: boolean;
 }
 
 function toMessage(row: Record<string, unknown>): ChatMessage {
@@ -27,6 +29,7 @@ function toMessage(row: Record<string, unknown>): ChatMessage {
     sender: row.sender as Sender,
     body: row.body as string,
     at: new Date(row.created_at as string).toISOString(),
+    ai: row.ai === true,
     attachment: row.file_id
       ? {
           id: row.file_id as string,
@@ -48,13 +51,14 @@ export async function addMessage(
   sender: Sender,
   body: string,
   file: Upload | null = null,
+  ai = false,
 ): Promise<ChatMessage> {
   if (!file) {
     const [row] = await db()`
       with m as (
-        insert into messages (conversation_id, sender, body)
-        values (${conversationId}, ${sender}, ${body})
-        returning id::text, sender, body, created_at
+        insert into messages (conversation_id, sender, body, ai)
+        values (${conversationId}, ${sender}, ${body}, ${ai})
+        returning id::text, sender, body, created_at, ai
       ), c as (
         update conversations set last_message_at = now()
         where id = ${conversationId}
@@ -71,7 +75,7 @@ export async function addMessage(
     ), m as (
       insert into messages (conversation_id, sender, body, attachment_id)
       select ${conversationId}::uuid, ${sender}, ${body}, a.id from a
-      returning id::text, sender, body, created_at
+      returning id::text, sender, body, created_at, ai
     ), c as (
       update conversations set last_message_at = now()
       where id = ${conversationId}
@@ -84,7 +88,7 @@ export async function addMessage(
 
 export async function messagesAfter(conversationId: string, after: number): Promise<ChatMessage[]> {
   const rows = await db()`
-    select m.id::text, m.sender, m.body, m.created_at,
+    select m.id::text, m.sender, m.body, m.created_at, m.ai,
            a.id as file_id, a.name as file_name, a.type as file_type, a.size as file_size,
            a.width as file_width, a.height as file_height
     from messages m

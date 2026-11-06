@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { replyInChat, shouldAnswer } from "@/lib/ai/assistant";
 import { addMessage, adminLink, MESSAGE_MAX, messagesAfter } from "@/lib/chat";
 import { getChatSettings } from "@/lib/chat-settings";
 import { db, getSetting } from "@/lib/db";
@@ -103,6 +104,11 @@ export async function POST(req: Request) {
         }),
       );
     }
+  }
+
+  if (await shouldAnswer(online)) {
+    const id = conversationId;
+    after(() => replyInChat(id));
   }
 
   after(() =>

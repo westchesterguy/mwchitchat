@@ -1,4 +1,6 @@
 import { after } from "next/server";
+import { replyInChat } from "./ai/assistant";
+import { getAiSettings } from "./ai/settings";
 import { addMessage } from "./chat";
 import { EMAIL_NOTE, getChatSettings } from "./chat-settings";
 import { db, getSetting } from "./db";
@@ -61,7 +63,13 @@ export async function rescueIfWaiting(conversationId: string, appBase: string): 
       (select m.body from messages m where m.conversation_id = c.id and m.sender = 'visitor' order by m.id desc limit 1) as last`;
   if (!c) return false;
 
-  await addMessage(conversationId, "system", await withEmailNote(settings.rescue.message, c.email as string | null));
+  // With the assistant covering for Michael, it answers instead; the set
+  // message is the fallback if it can't.
+  const ai = await getAiSettings();
+  const answered = ai.enabled && ai.mode === "cover" && (await replyInChat(conversationId));
+  if (!answered) {
+    await addMessage(conversationId, "system", await withEmailNote(settings.rescue.message, c.email as string | null));
+  }
 
   if (settings.rescue.alert) {
     const name = (c.name as string | null) ?? "A visitor";

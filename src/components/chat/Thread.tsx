@@ -146,6 +146,7 @@ export function Thread({
   otherAvatar,
   onRetry,
   header,
+  aiName = "Assistant",
 }: {
   messages: ChatMessage[];
   /** Whose messages sit on the right in navy. */
@@ -155,6 +156,8 @@ export function Thread({
   onRetry?: (m: ChatMessage) => void;
   /** Shown above the first message (an intro card, say). */
   header?: React.ReactNode;
+  /** The AI assistant's name, shown on its messages. */
+  aiName?: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const initial = useRef<Set<number> | null>(null);
@@ -228,10 +231,15 @@ export function Thread({
 
           const isMine = m.sender === mine;
           const sameAsPrev =
-            !newDay && prev && prev.sender === m.sender && new Date(m.at).getTime() - new Date(prev.at).getTime() < RUN_GAP_MS;
+            !newDay &&
+            prev &&
+            prev.sender === m.sender &&
+            Boolean(prev.ai) === Boolean(m.ai) &&
+            new Date(m.at).getTime() - new Date(prev.at).getTime() < RUN_GAP_MS;
           const sameAsNext =
             next &&
             next.sender === m.sender &&
+            Boolean(next.ai) === Boolean(m.ai) &&
             dayKey(next.at) === dayKey(m.at) &&
             new Date(next.at).getTime() - new Date(m.at).getTime() < RUN_GAP_MS;
           const first = !sameAsPrev;
@@ -252,7 +260,7 @@ export function Thread({
                 )}
                 <div className={`flex max-w-[82%] flex-col sm:max-w-[72%] ${isMine ? "items-end" : "items-start"}`}>
                   {!isMine && first && (
-                    <span className="mb-1 ml-3 text-[11px] font-medium text-muted">{otherName}</span>
+                    <span className="mb-1 ml-3 text-[11px] font-medium text-muted">{m.ai ? aiName : otherName}</span>
                   )}
                   {m.attachment && (
                     <AttachmentView a={m.attachment} mine={isMine} pending={m.pending} failed={m.failed} onOpen={setViewing} />
@@ -285,6 +293,7 @@ export function Thread({
                         </button>
                       ) : (
                         <>
+                          {isMine && m.ai && <span className="font-medium text-muted">{aiName} ·</span>}
                           {clock(m.at)}
                           {isMine &&
                             (m.pending ? (

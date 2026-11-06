@@ -19,7 +19,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     update conversations set agent_last_read_at = now()
     where id = ${id}
     returning id, site, status, start_url, start_title, prechat, ip, country, region,
-              city, created_at, closed_at, visitor_id`;
+              city, created_at, closed_at, visitor_id, ai_paused`;
   if (!row) return jsonError(404, "not_found");
 
   const [visitor] = await db()`

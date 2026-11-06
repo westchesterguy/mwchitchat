@@ -9,7 +9,7 @@ import { devConfigured, isDeveloper } from "@/lib/dev-auth";
 export const metadata: Metadata = { title: "Developer · MW Chat" };
 export const dynamic = "force-dynamic";
 
-const TABS: Tab[] = ["leads", "activity", "health", "settings", "data"];
+const TABS: Tab[] = ["leads", "activity", "health", "settings", "ai", "data"];
 
 export default async function DeveloperPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const asked = (await searchParams).tab as Tab | undefined;

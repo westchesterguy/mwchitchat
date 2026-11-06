@@ -18,8 +18,14 @@ export function Composer({
   autoFocus,
   maxLength = 2000,
   attachments = true,
+  actions,
+  draft,
 }: {
   onSend: (text: string, file: Outgoing | null) => void;
+  /** Buttons beside the note above the field (Suggest a reply, say). */
+  actions?: React.ReactNode;
+  /** Text to put in the field, such as a suggested reply; a new `n` puts it in again. */
+  draft?: { text: string; n: number } | null;
   placeholder?: string;
   note?: React.ReactNode;
   autoFocus?: boolean;
@@ -34,6 +40,13 @@ export function Composer({
   const field = useRef<HTMLTextAreaElement>(null);
   const picker = useRef<HTMLInputElement>(null);
   const finePointer = useRef(true);
+
+  useEffect(() => {
+    if (draft) {
+      setText(draft.text);
+      field.current?.focus();
+    }
+  }, [draft]);
 
   useEffect(() => {
     finePointer.current = window.matchMedia("(pointer: fine)").matches;
@@ -106,7 +119,12 @@ export function Composer({
         dragging ? "border-navy/40 bg-navy-tint" : "border-line"
       }`}
     >
-      {note && <div className="mb-2 px-1 text-[12px] text-muted">{note}</div>}
+      {(note || actions) && (
+        <div className="mb-2 flex items-center gap-2 px-1">
+          <div className="min-w-0 flex-1 text-[12px] text-muted">{note}</div>
+          {actions}
+        </div>
+      )}
 
       {(file || preparing || error) && (
         <div className="anim-rise mb-2 flex items-center gap-3 rounded-2xl border border-line bg-surface p-2 pr-1.5">

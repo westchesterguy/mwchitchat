@@ -8,7 +8,7 @@ import { Thread } from "../chat/Thread";
 import { ago } from "../chat/time";
 import { useMessages, type ChatMessage } from "../chat/useMessages";
 import { Avatar } from "../ui/Avatar";
-import { BackIcon, ChatIcon, GlobeIcon, InfoIcon, MailIcon, PhoneIcon } from "../ui/icons";
+import { BackIcon, ChatIcon, GlobeIcon, InfoIcon, MailIcon, PhoneIcon, SparkleIcon, Spinner } from "../ui/icons";
 import { Menu, type MenuItem } from "../ui/Menu";
 import { Sheet } from "../ui/Sheet";
 import { chime } from "./tones";
@@ -19,6 +19,7 @@ const contactButton =
 
 interface Conversation {
   id: string;
+  ai_paused: boolean;
   site: string;
   status: "open" | "closed";
   start_url: string | null;
@@ -123,6 +124,29 @@ export function ConversationView({ id }: { id: string }) {
 
   const reach = useMemo(() => contactOf(visitor, messages), [visitor, messages]);
 
+  // The AI assistant, when it is switched on in the developer page.
+  const [ai, setAi] = useState<{ enabled: boolean; mode: string; name: string } | null>(null);
+  const [draft, setDraft] = useState<{ text: string; n: number } | null>(null);
+  const [drafting, setDrafting] = useState(false);
+  const [draftError, setDraftError] = useState<string | null>(null);
+  useEffect(() => {
+    adminApi<{ ai?: { enabled: boolean; mode: string; name: string } }>("/api/admin/settings").then(
+      ({ ok, data }) => ok && data.ai && setAi(data.ai),
+    );
+  }, []);
+  const suggest = async () => {
+    setDrafting(true);
+    setDraftError(null);
+    const { ok, data } = await adminApi<{ text?: string; message?: string }>(`/api/admin/conversations/${id}/draft`, "POST", {});
+    setDrafting(false);
+    if (ok && data.text) setDraft({ text: data.text, n: Date.now() });
+    else setDraftError(data.message ?? "No suggestion this time.");
+  };
+  const setAssistant = async (paused: boolean) => {
+    const { ok } = await adminApi(`/api/admin/conversations/${id}/assistant`, "POST", { paused });
+    if (ok) setConversation((c) => (c ? { ...c, ai_paused: paused } : c));
+  };
+
   if (missing) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center bg-canvas px-8 text-center">
@@ -138,6 +162,13 @@ export function ConversationView({ id }: { id: string }) {
   const menu: MenuItem[] = [
     ...(reach.email ? [{ label: "Email visitor", icon: <MailIcon className="h-[18px] w-[18px]" />, href: `mailto:${reach.email}` }] : []),
     ...(reach.phone ? [{ label: "Call visitor", icon: <PhoneIcon className="h-[18px] w-[18px]" />, href: telHref(reach.phone) }] : []),
+    ...(ai?.enabled && ai.mode !== "drafts" && conversation
+      ? [
+          conversation.ai_paused
+            ? { label: `Let ${ai.name} answer here`, icon: <SparkleIcon className="h-[18px] w-[18px]" />, onSelect: () => setAssistant(false) }
+            : { label: `Keep ${ai.name} out of this chat`, icon: <SparkleIcon className="h-[18px] w-[18px]" />, onSelect: () => setAssistant(true) },
+        ]
+      : []),
     conversation?.status === "closed"
       ? { label: "Reopen chat", icon: <ChatIcon className="h-[18px] w-[18px]" />, onSelect: () => setStatus("open") }
       : { label: "Close chat", icon: <ChatIcon className="h-[18px] w-[18px]" />, onSelect: () => setStatus("closed"), danger: true },
@@ -209,6 +240,7 @@ export function ConversationView({ id }: { id: string }) {
             messages={messages}
             mine="agent"
             otherName={name}
+            aiName={ai?.name}
             otherAvatar={<Avatar name={name} size="sm" />}
             onRetry={(m) => {
               remove(m.id);
@@ -227,6 +259,22 @@ export function ConversationView({ id }: { id: string }) {
           onSend={send}
           placeholder="Reply"
           autoFocus
+          draft={draft}
+          actions={
+            ai?.enabled ? (
+              <span className="flex items-center gap-2">
+                {draftError && <span className="text-[12px] text-danger">{draftError}</span>}
+                <button
+                  type="button"
+                  onClick={suggest}
+                  disabled={drafting}
+                  className="press inline-flex items-center gap-1.5 rounded-full bg-navy-tint px-3 py-1 text-[12px] font-semibold text-accent disabled:opacity-60"
+                >
+                  {drafting ? <Spinner className="h-3.5 w-3.5" /> : <SparkleIcon className="h-3.5 w-3.5" />} Suggest a reply
+                </button>
+              </span>
+            ) : undefined
+          }
           note={conversation?.status === "closed" ? "This chat is closed. Replying reopens it." : undefined}
         />
       </section>

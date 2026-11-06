@@ -124,3 +124,6 @@ export const FileIcon = (p: IconProps) => (
 export const ExternalIcon = (p: IconProps) => (
   <Icon {...p}><path d="M14 4.5h5.5V10M19.5 4.5L11 13M17 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 4 18.5v-10A1.5 1.5 0 0 1 5.5 7H10" /></Icon>
 );
+export const SparkleIcon = (p: IconProps) => (
+  <Icon {...p}><path d="M12 3.5l1.6 4.4 4.4 1.6-4.4 1.6L12 15.5l-1.6-4.4L6 9.5l4.4-1.6zM18.5 15l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" /></Icon>
+);

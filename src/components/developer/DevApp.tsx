@@ -4,18 +4,20 @@ import { useState } from "react";
 import { Mark } from "../Mark";
 import { ExternalIcon, LogoutIcon } from "../ui/icons";
 import { Activity } from "./Activity";
+import { AiPanel } from "./AiPanel";
 import { ChatSettingsPanel } from "./ChatSettingsPanel";
 import { DataTools } from "./DataTools";
 import { Health } from "./Health";
 import { Leads } from "./Leads";
 
-export type Tab = "leads" | "activity" | "health" | "settings" | "data";
+export type Tab = "leads" | "activity" | "health" | "settings" | "ai" | "data";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "leads", label: "Leads" },
   { id: "activity", label: "Activity" },
   { id: "health", label: "Health" },
   { id: "settings", label: "Chat settings" },
+  { id: "ai", label: "AI integration" },
   { id: "data", label: "Data" },
 ];
 
@@ -94,6 +96,7 @@ export function DevApp({ initialTab }: { initialTab: Tab }) {
         {tab === "activity" && <Activity />}
         {tab === "health" && <Health />}
         {tab === "settings" && <ChatSettingsPanel />}
+        {tab === "ai" && <AiPanel />}
         {tab === "data" && <DataTools />}
       </main>
     </div>

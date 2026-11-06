@@ -39,6 +39,9 @@ Postgres.js v4 (Supabase, pooled, `prepare: false`) · Web Push · Resend.
 - `src/app/developer/` and `src/components/developer/`: the developer page,
   web only, its own sign-in (`src/lib/dev-auth.ts`), its API under
   `/developer/api`. Chat behaviour it controls lives in `src/lib/chat-settings.ts`.
+- `src/lib/ai/`: the optional AI assistant (off by default). Claude goes
+  through `@anthropic-ai/sdk` in `claude.ts`; every other service through the
+  OpenAI-style API in `openai-style.ts`. Add a service in `providers.ts`.
 - `public/widget.js`: the loader the sites include; `public/sw.js`: notifications
 
 ## Local testing

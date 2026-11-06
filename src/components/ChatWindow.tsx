@@ -21,6 +21,7 @@ interface Field {
 interface Config {
   online: boolean;
   attachments?: boolean;
+  assistantName?: string;
   phone: string;
   phoneHref: string;
   fields: Field[];
@@ -249,6 +250,7 @@ export function ChatWindow({ site, privacyUrl }: { site: string; privacyUrl: str
             messages={messages}
             mine="visitor"
             otherName="Michael"
+            aiName={config?.assistantName}
             otherAvatar={<Avatar name={MICHAEL} src={HEADSHOT_URL} size="sm" />}
             onRetry={(m) => {
               remove(m.id);

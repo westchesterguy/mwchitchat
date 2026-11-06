@@ -21,6 +21,8 @@ export interface ChatMessage {
   body: string;
   at: string;
   attachment?: Attachment | null;
+  /** Written by the AI assistant rather than Michael. */
+  ai?: boolean;
   /** Shown straight away while it is being sent (temporary negative id). */
   pending?: boolean;
   failed?: boolean;

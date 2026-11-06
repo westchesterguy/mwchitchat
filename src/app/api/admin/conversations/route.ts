@@ -41,11 +41,12 @@ export async function GET(req: Request) {
         when lm.body = '' then 'Attachment removed'
         else lm.body
       end as preview,
-      lm.sender as last_sender
+      lm.sender as last_sender,
+      lm.ai as last_ai
     from conversations c
     join visitors v on v.id = c.visitor_id
     left join lateral (
-      select m.body, m.sender, a.type as file_type from messages m
+      select m.body, m.sender, m.ai, a.type as file_type from messages m
       left join attachments a on a.id = m.attachment_id
       where m.conversation_id = c.id and m.sender <> 'system'
       order by m.id desc limit 1

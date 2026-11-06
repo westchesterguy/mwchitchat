@@ -1,7 +1,8 @@
 import { after } from "next/server";
+import { replyInChat, shouldAnswer } from "@/lib/ai/assistant";
 import { addMessage, MESSAGE_MAX } from "@/lib/chat";
 import { getChatSettings } from "@/lib/chat-settings";
-import { db } from "@/lib/db";
+import { db, getSetting } from "@/lib/db";
 import { attachmentLabel, readMessageForm, type Upload } from "@/lib/files";
 import { isSameOrigin, jsonError, overLimit } from "@/lib/guard";
 import { notifyAgent } from "@/lib/push";
@@ -51,6 +52,12 @@ export async function POST(req: Request) {
 
   const message = await addMessage(visitor.conversationId, "visitor", text, file);
   await touchVisitor(visitor.visitorId);
+
+  // The AI assistant, if it is on and this is its moment to answer.
+  if (await shouldAnswer(await getSetting<boolean>("agent_online", true))) {
+    const id = visitor.conversationId;
+    after(() => replyInChat(id));
+  }
 
   // Michael is told unless he has had this chat open in the last half minute.
   const [c] = await db()`

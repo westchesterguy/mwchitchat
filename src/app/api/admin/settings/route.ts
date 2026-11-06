@@ -1,4 +1,5 @@
 import { adminGuard } from "@/lib/admin-auth";
+import { getAiSettings } from "@/lib/ai/settings";
 import { getSetting, setSetting } from "@/lib/db";
 import { jsonError } from "@/lib/guard";
 import {
@@ -33,6 +34,7 @@ export async function GET(req: Request) {
       online: await getSetting<boolean>("agent_online", true),
       push: { configured: true, publicKey: (await getVapidKeys()).publicKey },
       email: await emailSettings(),
+      ai: await getAiSettings().then((a) => ({ enabled: a.enabled, mode: a.mode, name: a.name })),
     },
     { headers: { "cache-control": "no-store" } },
   );
